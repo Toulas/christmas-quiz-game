@@ -264,8 +264,14 @@ const Snowflakes = () => (
   </div>
 );
 
+// Family access code - change this to your own secret code!
+const FAMILY_ACCESS_CODE = "JACKSON2024";
+
 export default function App() {
   const [connected, setConnected] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [accessError, setAccessError] = useState('');
   const [screen, setScreen] = useState('home');
   const [isHost, setIsHost] = useState(false);
   const [playerName, setPlayerName] = useState('');
@@ -288,6 +294,12 @@ export default function App() {
 
   // Initialize
   useEffect(() => {
+    // Check if already has access
+    const savedAccess = localStorage.getItem('familyAccess');
+    if (savedAccess === FAMILY_ACCESS_CODE) {
+      setHasAccess(true);
+    }
+    
     let id = localStorage.getItem('playerId');
     if (!id) { id = 'p_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('playerId', id); }
     setPlayerId(id);
@@ -499,6 +511,58 @@ export default function App() {
   const copyCode = () => { navigator.clipboard.writeText(roomCode); setCopied(true); soundManager.playClick(); setTimeout(() => setCopied(false), 2000); };
   const toggleSound = () => setSoundEnabled(soundManager.toggle());
   const sortedPlayers = Object.entries(players).map(([id, p]) => ({ id, ...p })).sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  // Verify family access code
+  const verifyAccess = () => {
+    if (accessCode.toUpperCase().trim() === FAMILY_ACCESS_CODE) {
+      localStorage.setItem('familyAccess', FAMILY_ACCESS_CODE);
+      setHasAccess(true);
+      setAccessError('');
+      soundManager.init();
+      soundManager.playCorrect();
+    } else {
+      setAccessError('Incorrect access code. Ask your host for the family code!');
+      soundManager.init();
+      soundManager.playWrong();
+    }
+  };
+
+  // GATE SCREEN
+  const renderGate = () => (
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-red-900 to-green-900 p-4 relative flex items-center justify-center">
+      <Snowflakes />
+      <div className="max-w-sm mx-auto relative z-10 text-center">
+        <div className="text-6xl mb-4">🎄🔒</div>
+        <h1 className="text-3xl font-bold text-white mb-2">Family Christmas Quiz</h1>
+        <p className="text-white/60 mb-6">This is a private family event.<br/>Enter your access code to continue.</p>
+        
+        <div className="bg-white/10 backdrop-blur rounded-xl p-6">
+          <label className="text-white/70 text-xs uppercase tracking-wide mb-2 block">Family Access Code</label>
+          <input 
+            type="text" 
+            value={accessCode} 
+            onChange={(e) => setAccessCode(e.target.value.toUpperCase())} 
+            onKeyDown={(e) => e.key === 'Enter' && verifyAccess()}
+            placeholder="Enter code" 
+            className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/40 text-2xl text-center font-mono tracking-widest uppercase border border-white/20 mb-3" 
+            maxLength={20}
+            autoFocus
+          />
+          {accessError && (
+            <p className="text-red-400 text-sm mb-3">{accessError}</p>
+          )}
+          <button 
+            onClick={verifyAccess} 
+            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform"
+          >
+            Enter Quiz
+          </button>
+        </div>
+        
+        <p className="text-white/30 text-xs mt-6">Don't have a code? Contact the quiz host.</p>
+      </div>
+    </div>
+  );
 
   // HOME
   const renderHome = () => (
@@ -801,6 +865,9 @@ export default function App() {
   };
 
   const getScreen = () => {
+    // Show gate first if no access
+    if (!hasAccess) return renderGate();
+    
     if (screen === 'home') return renderHome();
     if (screen === 'lobby') {
       if (gameState?.status === 'playing') return renderPlaying();
