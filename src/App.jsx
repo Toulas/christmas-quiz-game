@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, onValue, off, update, remove, query, orderByChild, endAt, get } from 'firebase/database';
-import { Users, ChevronRight, Check, X, Clock, Crown, Wifi, WifiOff, Copy, LogOut, Volume2, VolumeX, Lock, Shuffle } from 'lucide-react';
+import { getDatabase, ref, set, onValue, off, update, remove, get } from 'firebase/database';
+import { Users, ChevronRight, Clock, Crown, Wifi, WifiOff, Copy, LogOut, Volume2, VolumeX, Lock, Shuffle, Trophy, Star, Play } from 'lucide-react';
 
-// Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAeJ_aa7TlPdTSpRpur3fCIoQKJtkP_1O4",
   authDomain: "christmas-quiz-d3d58.firebaseapp.com",
@@ -16,11 +15,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-
-// Room expiry time (2 hours in milliseconds)
 const ROOM_EXPIRY_MS = 2 * 60 * 60 * 1000;
 
-// Sound Manager
 class SoundManager {
   constructor() { this.audioContext = null; this.enabled = true; }
   init() {
@@ -48,10 +44,11 @@ class SoundManager {
 }
 const soundManager = new SoundManager();
 
-// Categories with metadata
 const categoryMeta = {
   currentaffairs: { name: "Current Affairs 2025", icon: "📰", color: "from-slate-500 to-zinc-600" },
-  twenty25: { name: "2025 Pop Culture", icon: "🔥", color: "from-rose-500 to-orange-500" },
+  twenty25: { name: "2025 Entertainment", icon: "🔥", color: "from-rose-500 to-orange-500" },
+  tv: { name: "TV Shows", icon: "📺", color: "from-purple-600 to-indigo-600" },
+  history: { name: "History", icon: "🏛️", color: "from-amber-700 to-yellow-600" },
   caribbean: { name: "Caribbean Christmas", icon: "🌴", color: "from-yellow-500 to-orange-500" },
   trivia: { name: "Christmas Trivia", icon: "🎄", color: "from-red-500 to-red-600" },
   movies: { name: "Christmas Movies", icon: "🎬", color: "from-purple-500 to-pink-500" },
@@ -68,246 +65,312 @@ const categoryMeta = {
   riddles: { name: "Riddles", icon: "🧩", color: "from-fuchsia-500 to-pink-500", type: "riddle" },
 };
 
-// Questions Database
 const allQuestions = {
   currentaffairs: [
-    // World Leaders & Politics
-    { id: 'ca1', question: "Who became the first American Pope in 2025, taking the name Leo XIV?", options: ["Cardinal Dolan", "Robert Prevost", "Sean O'Malley", "Blase Cupich"], answer: "Robert Prevost" },
-    { id: 'ca2', question: "Which country elected its first female Prime Minister, Sanae Takaichi, in 2025?", options: ["South Korea", "Japan", "Taiwan", "Singapore"], answer: "Japan" },
+    { id: 'ca1', question: "Who became the first American Pope in 2025?", options: ["Cardinal Dolan", "Robert Prevost", "Sean O'Malley", "Blase Cupich"], answer: "Robert Prevost" },
+    { id: 'ca2', question: "Which country elected its first female PM, Sanae Takaichi, in 2025?", options: ["South Korea", "Japan", "Taiwan", "Singapore"], answer: "Japan" },
     { id: 'ca3', question: "Who became Chancellor of Germany in 2025?", options: ["Olaf Scholz", "Friedrich Merz", "Annalena Baerbock", "Markus Söder"], answer: "Friedrich Merz" },
-    { id: 'ca4', question: "Which South Korean president was arrested and removed from office in 2025?", options: ["Moon Jae-in", "Yoon Suk Yeol", "Park Geun-hye", "Lee Jae-myung"], answer: "Yoon Suk Yeol" },
-    { id: 'ca5', question: "Who became the first female Archbishop of Canterbury in 2025?", options: ["Sarah Mullally", "Rose Hudson-Wilkin", "Rachel Treweek", "Libby Lane"], answer: "Sarah Mullally" },
-    // Major Events
-    { id: 'ca6', question: "In January 2025, devastating wildfires hit which major US city?", options: ["San Francisco", "Los Angeles", "San Diego", "Phoenix"], answer: "Los Angeles" },
-    { id: 'ca7', question: "What was stolen from the Louvre Museum in Paris in October 2025?", options: ["Mona Lisa", "Crown Jewels", "Venus de Milo", "Egyptian artifacts"], answer: "Crown Jewels" },
-    { id: 'ca8', question: "Which social media company removed third-party fact-checking from its platforms in 2025?", options: ["Twitter/X", "TikTok", "Meta", "Google"], answer: "Meta" },
-    { id: 'ca9', question: "Carlo Acutis, canonized in 2025, is known as the patron saint of what?", options: ["Youth", "The Internet", "Gamers", "Students"], answer: "The Internet" },
-    { id: 'ca10', question: "Which species was removed from the endangered list in 2025 after decades of conservation?", options: ["Giant Panda", "Green Turtle", "Blue Whale", "Snow Leopard"], answer: "Green Turtle" },
-    // Sports
-    { id: 'ca11', question: "Which MLS team, led by Lionel Messi, won the 2025 MLS Cup?", options: ["LA Galaxy", "Inter Miami", "LAFC", "Atlanta United"], answer: "Inter Miami" },
-    { id: 'ca12', question: "Who performed at the Super Bowl LIX halftime show in February 2025?", options: ["Beyoncé", "Kendrick Lamar", "Taylor Swift", "Drake"], answer: "Kendrick Lamar" },
-    // Entertainment & Culture
-    { id: 'ca13', question: "Which film won Best Picture at the 2025 Academy Awards?", options: ["Wicked", "Anora", "The Brutalist", "Emilia Pérez"], answer: "Anora" },
-    { id: 'ca14', question: "Beyoncé finally won Grammy Album of the Year in 2025 for which album?", options: ["Renaissance", "Lemonade", "Cowboy Carter", "4"], answer: "Cowboy Carter" },
-    { id: 'ca15', question: "Taylor Swift got engaged to which NFL player in 2025?", options: ["Patrick Mahomes", "Travis Kelce", "Joe Burrow", "Josh Allen"], answer: "Travis Kelce" },
+    { id: 'ca4', question: "Which South Korean president was removed from office in 2025?", options: ["Moon Jae-in", "Yoon Suk Yeol", "Park Geun-hye", "Lee Jae-myung"], answer: "Yoon Suk Yeol" },
+    { id: 'ca5', question: "Who became the first female Archbishop of Canterbury?", options: ["Sarah Mullally", "Rose Hudson-Wilkin", "Rachel Treweek", "Libby Lane"], answer: "Sarah Mullally" },
+    { id: 'ca6', question: "In January 2025, devastating wildfires hit which US city?", options: ["San Francisco", "Los Angeles", "San Diego", "Phoenix"], answer: "Los Angeles" },
+    { id: 'ca7', question: "What was stolen from the Louvre Museum in 2025?", options: ["Mona Lisa", "Crown Jewels", "Venus de Milo", "Egyptian artifacts"], answer: "Crown Jewels" },
+    { id: 'ca8', question: "Which company removed fact-checking from its platforms in 2025?", options: ["Twitter/X", "TikTok", "Meta", "Google"], answer: "Meta" },
+    { id: 'ca9', question: "Carlo Acutis, canonized in 2025, is patron saint of what?", options: ["Youth", "The Internet", "Gamers", "Students"], answer: "The Internet" },
+    { id: 'ca10', question: "Which species came off the endangered list in 2025?", options: ["Giant Panda", "Green Turtle", "Blue Whale", "Snow Leopard"], answer: "Green Turtle" },
+    { id: 'ca11', question: "Which MLS team won the 2025 MLS Cup with Messi?", options: ["LA Galaxy", "Inter Miami", "LAFC", "Atlanta United"], answer: "Inter Miami" },
+    { id: 'ca12', question: "Who performed at the 2025 Super Bowl halftime show?", options: ["Beyoncé", "Kendrick Lamar", "Taylor Swift", "Drake"], answer: "Kendrick Lamar" },
+    { id: 'ca13', question: "Which film won Best Picture at the 2025 Oscars?", options: ["Wicked", "Anora", "The Brutalist", "Emilia Pérez"], answer: "Anora" },
+    { id: 'ca14', question: "Beyoncé won Grammy AOTY in 2025 for which album?", options: ["Renaissance", "Lemonade", "Cowboy Carter", "4"], answer: "Cowboy Carter" },
+    { id: 'ca15', question: "Taylor Swift got engaged to which NFL player?", options: ["Patrick Mahomes", "Travis Kelce", "Joe Burrow", "Josh Allen"], answer: "Travis Kelce" },
   ],
   twenty25: [
-    // Music 2025
-    { id: '25_1', question: "Which TikTok star's song 'Ordinary' broke the US record for most consecutive weeks at #1 in 2025?", options: ["Benson Boone", "Alex Warren", "Tate McRae", "Sombr"], answer: "Alex Warren" },
-    { id: '25_2', question: "Kendrick Lamar and SZA's duet 'Luther' samples which R&B legend?", options: ["Marvin Gaye", "Luther Vandross", "Teddy Pendergrass", "Barry White"], answer: "Luther Vandross" },
+    { id: '25_1', question: "Whose song 'Ordinary' broke the US record for most weeks at #1?", options: ["Benson Boone", "Alex Warren", "Tate McRae", "Sombr"], answer: "Alex Warren" },
+    { id: '25_2', question: "Kendrick & SZA's 'Luther' samples which R&B legend?", options: ["Marvin Gaye", "Luther Vandross", "Teddy Pendergrass", "Barry White"], answer: "Luther Vandross" },
     { id: '25_3', question: "Lady Gaga's 2025 album is called what?", options: ["Chromatica II", "MAYHEM", "Monster Ball", "ARTPOP 2"], answer: "MAYHEM" },
-    { id: '25_4', question: "Which girl group's song 'Golden' became the first K-pop girl group #1 since Destiny's Child?", options: ["BLACKPINK", "NewJeans", "Huntrix", "KATSEYE"], answer: "Huntrix" },
-    { id: '25_5', question: "Tate McRae's 2025 hit '2 Hands' is from which album?", options: ["Think Later", "So Close To What", "Greedy", "Exes"], answer: "So Close To What" },
-    { id: '25_6', question: "Which R&B artist had their first Top 10 hit with 'Folded' in 2025?", options: ["Summer Walker", "Kehlani", "SZA", "Ravyn Lenae"], answer: "Kehlani" },
-    { id: '25_7', question: "Sabrina Carpenter's 2025 single 'Manchild' is from which album?", options: ["emails i can't send", "Short n' Sweet", "Man's Best Friend", "Singular"], answer: "Man's Best Friend" },
-    { id: '25_8', question: "Which Bruno Mars & Lady Gaga collaboration topped charts in 2025?", options: ["Shallow", "Die With A Smile", "Just Dance", "Uptown Funk"], answer: "Die With A Smile" },
-    // Movies 2025
-    { id: '25_9', question: "Which animated film became the highest-grossing animated movie ever in 2025, earning over $2 billion?", options: ["Frozen 3", "Zootopia 2", "Ne Zha 2", "Inside Out 3"], answer: "Ne Zha 2" },
-    { id: '25_10', question: "Which Disney live-action remake was the first live-action/animated film to gross $1 billion?", options: ["The Little Mermaid", "Moana", "Lilo & Stitch", "Snow White"], answer: "Lilo & Stitch" },
-    { id: '25_11', question: "What is the 2025 sequel to the Broadway musical adaptation starring Cynthia Erivo?", options: ["Wicked: Part Two", "Wicked: For Good", "Wicked: Elphaba Rising", "Wicked Forever"], answer: "Wicked: For Good" },
-    { id: '25_12', question: "Which anime film broke records as the highest-grossing Japanese film of all time in 2025?", options: ["One Piece: Final Chapter", "Demon Slayer: Infinity Castle", "My Hero Academia: Final", "Jujutsu Kaisen Zero 2"], answer: "Demon Slayer: Infinity Castle" },
-    { id: '25_13', question: "The 2025 horror film 'The Conjuring: Last Rites' broke what record?", options: ["Longest runtime", "Biggest horror opening ever", "Most sequels", "Best reviews"], answer: "Biggest horror opening ever" },
-    { id: '25_14', question: "What is the title of the third Avatar movie released in December 2025?", options: ["Avatar: The Seed Bearer", "Avatar: Fire and Ash", "Avatar: Pandora Rising", "Avatar: The Way of Fire"], answer: "Avatar: Fire and Ash" },
-    { id: '25_15', question: "Which superhero reboot launched the new DCU in 2025?", options: ["Batman", "Superman", "Wonder Woman", "The Flash"], answer: "Superman" },
+    { id: '25_4', question: "Which girl group's 'Golden' was first K-pop #1 since Destiny's Child?", options: ["BLACKPINK", "NewJeans", "Huntrix", "KATSEYE"], answer: "Huntrix" },
+    { id: '25_5', question: "Tate McRae's hit '2 Hands' is from which album?", options: ["Think Later", "So Close To What", "Greedy", "Exes"], answer: "So Close To What" },
+    { id: '25_6', question: "Which artist's 'Folded' was their first Top 10 in 2025?", options: ["Summer Walker", "Kehlani", "SZA", "Ravyn Lenae"], answer: "Kehlani" },
+    { id: '25_7', question: "Sabrina Carpenter's 'Manchild' is from which album?", options: ["emails i can't send", "Short n' Sweet", "Man's Best Friend", "Singular"], answer: "Man's Best Friend" },
+    { id: '25_8', question: "Which Bruno Mars & Lady Gaga song topped 2025 charts?", options: ["Shallow", "Die With A Smile", "Just Dance", "Uptown Funk"], answer: "Die With A Smile" },
+    { id: '25_9', question: "Which animated film grossed over $2 billion in 2025?", options: ["Frozen 3", "Zootopia 2", "Ne Zha 2", "Inside Out 3"], answer: "Ne Zha 2" },
+    { id: '25_10', question: "Which Disney remake was first to gross $1 billion?", options: ["Little Mermaid", "Moana", "Lilo & Stitch", "Snow White"], answer: "Lilo & Stitch" },
+    { id: '25_11', question: "What's the 2025 Wicked sequel called?", options: ["Wicked: Part Two", "Wicked: For Good", "Wicked: Elphaba Rising", "Wicked Forever"], answer: "Wicked: For Good" },
+    { id: '25_12', question: "Which anime became highest-grossing Japanese film ever?", options: ["One Piece: Final", "Demon Slayer: Infinity Castle", "My Hero Academia", "Jujutsu Kaisen"], answer: "Demon Slayer: Infinity Castle" },
+    { id: '25_13', question: "The Conjuring: Last Rites broke what record?", options: ["Longest runtime", "Biggest horror opening", "Most sequels", "Best reviews"], answer: "Biggest horror opening" },
+    { id: '25_14', question: "What's the third Avatar movie called?", options: ["The Seed Bearer", "Fire and Ash", "Pandora Rising", "Way of Fire"], answer: "Fire and Ash" },
+    { id: '25_15', question: "Which superhero launched the new DCU in 2025?", options: ["Batman", "Superman", "Wonder Woman", "The Flash"], answer: "Superman" },
+  ],
+  tv: [
+    { id: 'tv1', question: "What is Netflix's most-watched English series ever?", options: ["Stranger Things", "Squid Game", "Wednesday", "Bridgerton"], answer: "Wednesday" },
+    { id: 'tv2', question: "In The Office (US), what's the paper company?", options: ["Dunder Mifflin", "Wernham Hogg", "Sabre", "Michael Scott Paper"], answer: "Dunder Mifflin" },
+    { id: 'tv3', question: "What was the prize money in Squid Game?", options: ["₩45.6 billion", "₩38.4 billion", "₩50 billion", "₩100 billion"], answer: "₩45.6 billion" },
+    { id: 'tv4', question: "Which show features Sheldon Cooper?", options: ["Friends", "Big Bang Theory", "How I Met Your Mother", "Brooklyn Nine-Nine"], answer: "Big Bang Theory" },
+    { id: 'tv5', question: "In Breaking Bad, what does Walter White teach?", options: ["Physics", "Chemistry", "Biology", "Mathematics"], answer: "Chemistry" },
+    { id: 'tv6', question: "What's the coffee shop in Friends?", options: ["Central Perk", "Coffee Central", "The Grind", "Java Joe's"], answer: "Central Perk" },
+    { id: 'tv7', question: "Which streaming service made The Crown?", options: ["Amazon Prime", "HBO Max", "Netflix", "Disney+"], answer: "Netflix" },
+    { id: 'tv8', question: "In Game of Thrones, what's Daenerys's largest dragon?", options: ["Viserion", "Rhaegal", "Drogon", "Balerion"], answer: "Drogon" },
+    { id: 'tv9', question: "Which British show features AC-12?", options: ["Broadchurch", "Line of Duty", "Luther", "Sherlock"], answer: "Line of Duty" },
+    { id: 'tv10', question: "What year is Stranger Things Season 1 set?", options: ["1983", "1984", "1985", "1986"], answer: "1983" },
+    { id: 'tv11', question: "In The Mandalorian, what's Baby Yoda's real name?", options: ["Yoda Jr", "Grogu", "Yaddle", "The Asset"], answer: "Grogu" },
+    { id: 'tv12', question: "Which show has 'The tribe has spoken'?", options: ["Big Brother", "Amazing Race", "Survivor", "The Challenge"], answer: "Survivor" },
+    { id: 'tv13', question: "What's the longest-running US animated show?", options: ["South Park", "Family Guy", "The Simpsons", "SpongeBob"], answer: "The Simpsons" },
+    { id: 'tv14', question: "What show features Eleven with powers?", options: ["The 100", "Stranger Things", "Umbrella Academy", "The OA"], answer: "Stranger Things" },
+    { id: 'tv15', question: "Who is the 'Mother of Dragons'?", options: ["Cersei", "Sansa", "Daenerys", "Arya"], answer: "Daenerys" },
+  ],
+  history: [
+    { id: 'his1', question: "In which year did World War I begin?", options: ["1912", "1914", "1916", "1918"], answer: "1914" },
+    { id: 'his2', question: "Who was first to walk on the moon?", options: ["Buzz Aldrin", "Neil Armstrong", "John Glenn", "Yuri Gagarin"], answer: "Neil Armstrong" },
+    { id: 'his3', question: "The Berlin Wall fell in which year?", options: ["1987", "1989", "1991", "1993"], answer: "1989" },
+    { id: 'his4', question: "Who was British PM during most of WWII?", options: ["Chamberlain", "Churchill", "Attlee", "Eden"], answer: "Churchill" },
+    { id: 'his5', question: "The Titanic sank in which year?", options: ["1910", "1912", "1914", "1916"], answer: "1912" },
+    { id: 'his6', question: "Which civilization built Machu Picchu?", options: ["Aztec", "Maya", "Inca", "Olmec"], answer: "Inca" },
+    { id: 'his7', question: "When did the US declare independence?", options: ["1774", "1775", "1776", "1777"], answer: "1776" },
+    { id: 'his8', question: "Who painted the Sistine Chapel ceiling?", options: ["Da Vinci", "Raphael", "Michelangelo", "Donatello"], answer: "Michelangelo" },
+    { id: 'his9', question: "The French Revolution began in which year?", options: ["1776", "1789", "1799", "1804"], answer: "1789" },
+    { id: 'his10', question: "Who was UK's first female Prime Minister?", options: ["Theresa May", "Margaret Thatcher", "Queen Victoria", "Elizabeth II"], answer: "Margaret Thatcher" },
+    { id: 'his11', question: "Which volcano destroyed Pompeii?", options: ["Etna", "Vesuvius", "Stromboli", "Olympus"], answer: "Vesuvius" },
+    { id: 'his12', question: "Which US war was North vs South?", options: ["Revolutionary", "1812", "Civil War", "Mexican-American"], answer: "Civil War" },
+    { id: 'his13', question: "Who was called the 'Iron Lady'?", options: ["Elizabeth II", "Thatcher", "Merkel", "Gandhi"], answer: "Thatcher" },
+    { id: 'his14', question: "The Great Fire of London occurred in?", options: ["1566", "1666", "1766", "1866"], answer: "1666" },
+    { id: 'his15', question: "Who discovered penicillin?", options: ["Pasteur", "Fleming", "Lister", "Jenner"], answer: "Fleming" },
   ],
   caribbean: [
-    // Trinidad & Tobago
-    { id: 'car1', question: "What is the traditional Christmas music of Trinidad & Tobago, with Spanish-influenced folk songs?", options: ["Calypso", "Parang", "Soca", "Reggae"], answer: "Parang" },
-    { id: 'car2', question: "What creamy rum drink is Trinidad's version of eggnog, made with Angostura bitters?", options: ["Sorrel", "Ponche de Crème", "Ginger Beer", "Mauby"], answer: "Ponche de Crème" },
-    { id: 'car3', question: "Pastelles are a Trinidadian Christmas dish. What are they wrapped in?", options: ["Corn husk", "Banana leaves", "Foil", "Pastry"], answer: "Banana leaves" },
-    { id: 'car4', question: "What is pastelles filled with?", options: ["Rice and beans", "Seasoned meat in cornmeal", "Vegetables", "Fish"], answer: "Seasoned meat in cornmeal" },
-    { id: 'car5', question: "Which country did parang music originally come from to Trinidad?", options: ["Spain", "Venezuela", "Portugal", "Colombia"], answer: "Venezuela" },
-    // Guyana
-    { id: 'car6', question: "What is Guyana's national dish, traditionally eaten on Christmas morning?", options: ["Jerk Chicken", "Pepperpot", "Curry Goat", "Jug Jug"], answer: "Pepperpot" },
-    { id: 'car7', question: "What special ingredient in pepperpot acts as a preservative, made from cassava?", options: ["Molasses", "Cassareep", "Tamarind", "Coconut milk"], answer: "Cassareep" },
-    { id: 'car8', question: "Garlic pork is a Guyanese Christmas dish brought by which European settlers?", options: ["British", "Dutch", "Portuguese", "French"], answer: "Portuguese" },
-    { id: 'car9', question: "What bread is traditionally eaten with Guyanese pepperpot?", options: ["Roti", "Plait bread", "Bake", "Hard dough bread"], answer: "Plait bread" },
-    { id: 'car10', question: "Which indigenous people of Guyana created pepperpot?", options: ["Taino", "Amerindians", "Arawak", "Caribs"], answer: "Amerindians" },
-    // Barbados
-    { id: 'car11', question: "What is the traditional Barbadian Christmas dish influenced by Scottish haggis?", options: ["Cou Cou", "Jug Jug", "Pepperpot", "Pudding and Souse"], answer: "Jug Jug" },
-    { id: 'car12', question: "Jug Jug is made with pigeon peas and what type of flour?", options: ["Wheat flour", "Cornmeal", "Guinea corn flour", "Cassava flour"], answer: "Guinea corn flour" },
-    { id: 'car13', question: "What is 'Great Cake' in Barbados?", options: ["A type of bread", "Rum-soaked fruitcake", "Coconut cake", "Sponge cake"], answer: "Rum-soaked fruitcake" },
-    { id: 'car14', question: "Where do Bajans traditionally gather on Christmas morning?", options: ["Oistins", "Queen's Park", "Holetown", "Bathsheba"], answer: "Queen's Park" },
-    { id: 'car15', question: "What event happens at Garrison Savannah on Boxing Day in Barbados?", options: ["Cricket match", "Horse racing", "Carnival", "Beach party"], answer: "Horse racing" },
-    // Jamaica
-    { id: 'car16', question: "What peas are traditionally used in Jamaican Christmas rice and peas?", options: ["Black-eyed peas", "Gungo peas", "Red kidney beans", "Chickpeas"], answer: "Gungo peas" },
-    { id: 'car17', question: "What is the red Christmas drink made from hibiscus flowers called in Jamaica?", options: ["Punch", "Sorrel", "Ginger beer", "Sky juice"], answer: "Sorrel" },
-    { id: 'car18', question: "Which meat is most associated with Jamaican Christmas dinner?", options: ["Jerk chicken", "Curry goat", "Oxtail", "All of these"], answer: "All of these" },
-    { id: 'car19', question: "What is Jamaican Christmas cake also known as?", options: ["Fruit cake", "Black cake", "Rum cake", "All of these"], answer: "All of these" },
-    // General Caribbean
-    { id: 'car20', question: "Which Caribbean island is Christmas celebrated in summer?", options: ["None - all are tropical", "Trinidad", "Jamaica", "Barbados"], answer: "None - all are tropical" },
-    { id: 'car21', question: "Sorrel drink is made from which flower?", options: ["Rose", "Hibiscus", "Poinsettia", "Jasmine"], answer: "Hibiscus" },
-    { id: 'car22', question: "What spice is commonly added to Caribbean sorrel drink?", options: ["Cinnamon", "Ginger", "Cloves", "All of these"], answer: "All of these" },
-    { id: 'car23', question: "In which Caribbean country might you eat 'conkies' wrapped in banana leaves?", options: ["Jamaica", "Barbados", "Trinidad", "Guyana"], answer: "Barbados" },
-    { id: 'car24', question: "What is the main fish in Barbados' national dish?", options: ["Snapper", "Flying fish", "Mahi mahi", "Salmon"], answer: "Flying fish" },
-    { id: 'car25', question: "Which Caribbean country is known for having KFC as a Christmas tradition (like Japan)?", options: ["None - that's only Japan", "Trinidad", "Barbados", "Jamaica"], answer: "None - that's only Japan" },
+    { id: 'car1', question: "What is Trinidad's traditional Christmas music?", options: ["Calypso", "Parang", "Soca", "Reggae"], answer: "Parang" },
+    { id: 'car2', question: "What's Trinidad's rum eggnog called?", options: ["Sorrel", "Ponche de Crème", "Ginger Beer", "Mauby"], answer: "Ponche de Crème" },
+    { id: 'car3', question: "Pastelles are wrapped in what?", options: ["Corn husk", "Banana leaves", "Foil", "Pastry"], answer: "Banana leaves" },
+    { id: 'car4', question: "What is pastelles filled with?", options: ["Rice and beans", "Meat in cornmeal", "Vegetables", "Fish"], answer: "Meat in cornmeal" },
+    { id: 'car5', question: "Where did parang music come from?", options: ["Spain", "Venezuela", "Portugal", "Colombia"], answer: "Venezuela" },
+    { id: 'car6', question: "What's Guyana's national dish?", options: ["Jerk Chicken", "Pepperpot", "Curry Goat", "Jug Jug"], answer: "Pepperpot" },
+    { id: 'car7', question: "Cassareep is made from what?", options: ["Molasses", "Cassava", "Tamarind", "Coconut"], answer: "Cassava" },
+    { id: 'car8', question: "Which settlers brought garlic pork to Guyana?", options: ["British", "Dutch", "Portuguese", "French"], answer: "Portuguese" },
+    { id: 'car9', question: "What bread goes with pepperpot?", options: ["Roti", "Plait bread", "Bake", "Hard dough"], answer: "Plait bread" },
+    { id: 'car10', question: "Who created pepperpot?", options: ["Taino", "Amerindians", "Arawak", "Caribs"], answer: "Amerindians" },
+    { id: 'car11', question: "Jug Jug is from which island?", options: ["Trinidad", "Barbados", "Jamaica", "Guyana"], answer: "Barbados" },
+    { id: 'car12', question: "What's 'Great Cake' in Barbados?", options: ["Bread", "Rum fruitcake", "Coconut cake", "Sponge"], answer: "Rum fruitcake" },
+    { id: 'car13', question: "Where do Bajans gather Christmas morning?", options: ["Oistins", "Queen's Park", "Holetown", "Bathsheba"], answer: "Queen's Park" },
+    { id: 'car14', question: "What peas are in Jamaican rice and peas?", options: ["Black-eyed", "Gungo peas", "Kidney beans", "Chickpeas"], answer: "Gungo peas" },
+    { id: 'car15', question: "Sorrel is made from which flower?", options: ["Rose", "Hibiscus", "Poinsettia", "Jasmine"], answer: "Hibiscus" },
   ],
   trivia: [
-    { id: 't1', question: "In which country did the tradition of putting up a Christmas tree originate?", options: ["England", "Germany", "USA", "France"], answer: "Germany" },
-    { id: 't2', question: "What is the name of the main character in 'A Christmas Carol'?", options: ["Bob Cratchit", "Ebenezer Scrooge", "Tiny Tim", "Jacob Marley"], answer: "Ebenezer Scrooge" },
-    { id: 't3', question: "How many gifts are given in total in 'The Twelve Days of Christmas'?", options: ["12", "78", "364", "144"], answer: "364" },
-    { id: 't4', question: "What plant is traditionally hung for kissing underneath?", options: ["Holly", "Ivy", "Mistletoe", "Poinsettia"], answer: "Mistletoe" },
-    { id: 't5', question: "How many ghosts appear in 'A Christmas Carol'?", options: ["3", "4", "5", "6"], answer: "4" },
-    { id: 't6', question: "What country did St. Nicholas originally come from?", options: ["Finland", "Turkey", "Greece", "Russia"], answer: "Turkey" },
-    { id: 't7', question: "In which country is it tradition to eat KFC for Christmas?", options: ["USA", "UK", "Japan", "Australia"], answer: "Japan" },
-    { id: 't8', question: "How many points does a snowflake traditionally have?", options: ["4", "5", "6", "8"], answer: "6" },
-    { id: 't9', question: "Which country gives Britain a Christmas tree each year for Trafalgar Square?", options: ["Sweden", "Norway", "Finland", "Denmark"], answer: "Norway" },
-    { id: 't10', question: "What do they call Santa Claus in France?", options: ["Papa Noël", "Père Noël", "Saint Nicolas", "Le Père Froid"], answer: "Père Noël" },
+    { id: 't1', question: "What plant is hung for Christmas kisses?", options: ["Holly", "Ivy", "Mistletoe", "Poinsettia"], answer: "Mistletoe" },
+    { id: 't2', question: "Which country started Christmas trees?", options: ["England", "Germany", "Norway", "Sweden"], answer: "Germany" },
+    { id: 't3', question: "What's the day after Christmas in UK?", options: ["Second Christmas", "Boxing Day", "St. Stephen's Day", "Gift Day"], answer: "Boxing Day" },
+    { id: 't4', question: "In the song, what's given on the 5th day?", options: ["Calling birds", "Gold rings", "French hens", "Geese a-laying"], answer: "Gold rings" },
+    { id: 't5', question: "Which country gives London its tree each year?", options: ["Sweden", "Finland", "Norway", "Denmark"], answer: "Norway" },
+    { id: 't6', question: "Best-selling Christmas single ever?", options: ["Last Christmas", "White Christmas", "All I Want for Christmas", "Silent Night"], answer: "White Christmas" },
+    { id: 't7', question: "What color are mistletoe berries?", options: ["Red", "White", "Green", "Black"], answer: "White" },
+    { id: 't8', question: "Which country eats KFC for Christmas?", options: ["USA", "Japan", "South Korea", "Philippines"], answer: "Japan" },
+    { id: 't9', question: "What's hidden in Christmas pudding?", options: ["Carrot", "Coin", "Almond", "Bean"], answer: "Coin" },
+    { id: 't10', question: "Which carol mentions 'figgy pudding'?", options: ["Deck the Halls", "We Wish You a Merry Christmas", "Jingle Bells", "Silent Night"], answer: "We Wish You a Merry Christmas" },
+    { id: 't11', question: "What do Icelanders receive Christmas Eve?", options: ["Chocolate", "Books", "Ornaments", "Candles"], answer: "Books" },
+    { id: 't12', question: "Who composed The Nutcracker?", options: ["Rachmaninoff", "Prokofiev", "Tchaikovsky", "Stravinsky"], answer: "Tchaikovsky" },
+    { id: 't13', question: "Which reindeer has a mythological name?", options: ["Dasher", "Cupid", "Prancer", "Comet"], answer: "Cupid" },
+    { id: 't14', question: "What are you supposed to do under mistletoe?", options: ["Shake hands", "Kiss", "Make a wish", "Sing"], answer: "Kiss" },
+    { id: 't15', question: "Eggnog originated in which country?", options: ["USA", "Germany", "Britain", "France"], answer: "Britain" },
   ],
   movies: [
-    { id: 'mov1', question: "In 'Home Alone', where are the McCallisters going on vacation?", options: ["London", "Paris", "Rome", "Miami"], answer: "Paris" },
-    { id: 'mov2', question: "What is the name of the Grinch's dog?", options: ["Spot", "Max", "Buddy", "Rex"], answer: "Max" },
-    { id: 'mov3', question: "In 'Elf', what does Buddy put in his spaghetti?", options: ["Chocolate chips", "Maple syrup", "Marshmallows", "All of the above"], answer: "All of the above" },
-    { id: 'mov4', question: "What movie features the line 'You'll shoot your eye out!'?", options: ["Elf", "A Christmas Story", "Home Alone", "Jingle All the Way"], answer: "A Christmas Story" },
-    { id: 'mov5', question: "What toy is the father trying to get in 'Jingle All the Way'?", options: ["Tickle Me Elmo", "Turbo Man", "Power Rangers", "Buzz Lightyear"], answer: "Turbo Man" },
-    { id: 'mov6', question: "What is the name of the angel in 'It's a Wonderful Life'?", options: ["Gabriel", "Michael", "Clarence", "George"], answer: "Clarence" },
-    { id: 'mov7', question: "In 'Die Hard', what building does the action take place in?", options: ["Empire State Building", "Nakatomi Plaza", "Sears Tower", "Trump Tower"], answer: "Nakatomi Plaza" },
-    { id: 'mov8', question: "In 'The Nightmare Before Christmas', what is Jack's title?", options: ["Pumpkin King", "Halloween King", "Skeleton King", "Nightmare King"], answer: "Pumpkin King" },
-    { id: 'mov9', question: "What year was 'Home Alone' released?", options: ["1988", "1990", "1992", "1994"], answer: "1990" },
-    { id: 'mov10', question: "What is the Grinch's mountain called?", options: ["Mount Crumpit", "Mount Grinch", "Mount Whoville", "Mount Christmas"], answer: "Mount Crumpit" },
+    { id: 'm1', question: "In Home Alone, where do the McCallisters go?", options: ["London", "Paris", "Rome", "Miami"], answer: "Paris" },
+    { id: 'm2', question: "What's the main character's name in Elf?", options: ["Buddy", "Jack", "Will", "Santa Jr"], answer: "Buddy" },
+    { id: 'm3', question: "In Polar Express, what's the first gift of Christmas?", options: ["A train", "A bell", "A toy", "A book"], answer: "A bell" },
+    { id: 'm4', question: "Which movie has the Griswold family?", options: ["Home Alone", "Elf", "Christmas Vacation", "Jingle All the Way"], answer: "Christmas Vacation" },
+    { id: 'm5', question: "What's the Grinch's dog's name?", options: ["Max", "Rex", "Spot", "Fido"], answer: "Max" },
+    { id: 'm6', question: "In It's a Wonderful Life, who's the angel?", options: ["Michael", "Gabriel", "Clarence", "Raphael"], answer: "Clarence" },
+    { id: 'm7', question: "Which Tim Burton film has Jack Skellington?", options: ["Corpse Bride", "Frankenweenie", "Nightmare Before Christmas", "Beetlejuice"], answer: "Nightmare Before Christmas" },
+    { id: 'm8', question: "In Die Hard, what building is taken over?", options: ["Empire State", "Nakatomi Plaza", "Willis Tower", "One World Trade"], answer: "Nakatomi Plaza" },
+    { id: 'm9', question: "What does Ralphie want in A Christmas Story?", options: ["Train set", "BB gun", "Bicycle", "Puppy"], answer: "BB gun" },
+    { id: 'm10', question: "In Love Actually, what song is #1 at Christmas?", options: ["White Christmas", "Christmas Is All Around", "Last Christmas", "Santa Baby"], answer: "Christmas Is All Around" },
+    { id: 'm11', question: "What year was Home Alone released?", options: ["1988", "1990", "1992", "1994"], answer: "1990" },
+    { id: 'm12', question: "Who plays the Grinch in the 2000 film?", options: ["Jim Carrey", "Mike Myers", "Robin Williams", "Adam Sandler"], answer: "Jim Carrey" },
+    { id: 'm13', question: "In The Santa Clause, what happens when Scott wears the suit?", options: ["He flies", "Gains weight", "Turns invisible", "Becomes immortal"], answer: "Gains weight" },
+    { id: 'm14', question: "Which film has Will Ferrell raised by elves?", options: ["Santa Clause", "Elf", "Jingle All the Way", "Fred Claus"], answer: "Elf" },
+    { id: 'm15', question: "What kind of tree does Charlie Brown pick?", options: ["Big and full", "Small and sparse", "Artificial", "Pine"], answer: "Small and sparse" },
   ],
   music: [
-    { id: 'm1', question: "Who originally sang 'White Christmas'?", options: ["Frank Sinatra", "Bing Crosby", "Elvis Presley", "Dean Martin"], answer: "Bing Crosby" },
-    { id: 'm2', question: "Who sang 'All I Want for Christmas Is You'?", options: ["Whitney Houston", "Mariah Carey", "Celine Dion", "Madonna"], answer: "Mariah Carey" },
-    { id: 'm3', question: "Who sang 'Last Christmas'?", options: ["Wham!", "Duran Duran", "Culture Club", "Spandau Ballet"], answer: "Wham!" },
-    { id: 'm4', question: "What Christmas song was originally written for Thanksgiving?", options: ["White Christmas", "Jingle Bells", "Winter Wonderland", "Silver Bells"], answer: "Jingle Bells" },
-    { id: 'm5', question: "Who sang 'Blue Christmas'?", options: ["Frank Sinatra", "Dean Martin", "Elvis Presley", "Johnny Cash"], answer: "Elvis Presley" },
-    { id: 'm6', question: "Who recorded 'Feliz Navidad'?", options: ["José Feliciano", "Julio Iglesias", "Luis Miguel", "Enrique Iglesias"], answer: "José Feliciano" },
-    { id: 'm7', question: "What collective had a hit in 1984 with 'Do They Know It's Christmas?'", options: ["USA for Africa", "Band Aid", "Live Aid", "We Are the World"], answer: "Band Aid" },
-    { id: 'm8', question: "Who had a hit with 'Step Into Christmas'?", options: ["George Michael", "Elton John", "Freddie Mercury", "David Bowie"], answer: "Elton John" },
-    { id: 'm9', question: "The Pogues sang about a Fairytale of which city?", options: ["London", "Dublin", "New York", "Paris"], answer: "New York" },
-    { id: 'm10', question: "Who released 'Rockin' Around the Christmas Tree' in 1958?", options: ["Brenda Lee", "Connie Francis", "Patsy Cline", "Peggy Lee"], answer: "Brenda Lee" },
+    { id: 'mu1', question: "Who sings 'All I Want for Christmas Is You'?", options: ["Whitney Houston", "Mariah Carey", "Celine Dion", "Beyoncé"], answer: "Mariah Carey" },
+    { id: 'mu2', question: "Which band sang 'Last Christmas'?", options: ["Duran Duran", "Wham!", "Culture Club", "Spandau Ballet"], answer: "Wham!" },
+    { id: 'mu3', question: "Which song has 'chestnuts roasting'?", options: ["Winter Wonderland", "The Christmas Song", "White Christmas", "Let It Snow"], answer: "The Christmas Song" },
+    { id: 'mu4', question: "Who sang the original 'White Christmas'?", options: ["Sinatra", "Dean Martin", "Bing Crosby", "Nat King Cole"], answer: "Bing Crosby" },
+    { id: 'mu5', question: "What does Frosty have for a nose?", options: ["Carrot", "Button", "Coal", "Stick"], answer: "Button" },
+    { id: 'mu6', question: "Who released 'Rockin' Around the Christmas Tree'?", options: ["Brenda Lee", "Connie Francis", "Patsy Cline", "Doris Day"], answer: "Brenda Lee" },
+    { id: 'mu7', question: "What year was 'Do They Know It's Christmas?' released?", options: ["1982", "1984", "1986", "1988"], answer: "1984" },
+    { id: 'mu8', question: "Who sang 'Blue Christmas'?", options: ["Johnny Cash", "Elvis Presley", "Roy Orbison", "Jerry Lee Lewis"], answer: "Elvis Presley" },
+    { id: 'mu9', question: "In 'Jingle Bells', what sleigh is it?", options: ["One-horse open", "Two-horse closed", "Reindeer-pulled", "Magic flying"], answer: "One-horse open" },
+    { id: 'mu10', question: "Who wrote 'Silent Night'?", options: ["Handel", "Bach", "Franz Gruber", "Mozart"], answer: "Franz Gruber" },
+    { id: 'mu11', question: "Who sang 'Santa Baby' originally?", options: ["Marilyn Monroe", "Eartha Kitt", "Madonna", "Kylie"], answer: "Eartha Kitt" },
+    { id: 'mu12', question: "What does 'Feliz Navidad' mean?", options: ["Happy Holidays", "Merry Christmas", "Happy New Year", "Good Tidings"], answer: "Merry Christmas" },
+    { id: 'mu13', question: "Band Aid was organized by Bob Geldof and?", options: ["Bono", "Midge Ure", "Sting", "Phil Collins"], answer: "Midge Ure" },
+    { id: 'mu14', question: "In Rudolph, who laughed and called him names?", options: ["Santa", "Other reindeer", "Elves", "Children"], answer: "Other reindeer" },
+    { id: 'mu15', question: "Which song says 'Have yourself a merry little Christmas'?", options: ["Silver Bells", "Meet Me in St. Louis", "White Christmas", "The Christmas Song"], answer: "Meet Me in St. Louis" },
   ],
   rnb: [
-    { id: 'rnb1', question: "Which R&B group released 'This Christmas' in 1993?", options: ["Boyz II Men", "New Edition", "Jodeci", "Blackstreet"], answer: "Boyz II Men" },
-    { id: 'rnb2', question: "Who sang 'Santa Baby' originally in 1953?", options: ["Etta James", "Eartha Kitt", "Ella Fitzgerald", "Nina Simone"], answer: "Eartha Kitt" },
-    { id: 'rnb3', question: "Donny Hathaway's 'This Christmas' was released in which year?", options: ["1970", "1975", "1980", "1985"], answer: "1970" },
-    { id: 'rnb4', question: "Which artist released '8 Days of Christmas'?", options: ["Destiny's Child", "TLC", "En Vogue", "SWV"], answer: "Destiny's Child" },
-    { id: 'rnb5', question: "Who performed 'Give Love on Christmas Day' with The Jackson 5?", options: ["Michael Jackson", "Jermaine Jackson", "Jackie Jackson", "All of them"], answer: "All of them" },
-    { id: 'rnb6', question: "Which R&B legend released 'Someday at Christmas'?", options: ["Marvin Gaye", "Stevie Wonder", "Smokey Robinson", "Lionel Richie"], answer: "Stevie Wonder" },
+    { id: 'rnb1', question: "Which group released 'This Christmas' in 1993?", options: ["Boyz II Men", "New Edition", "Jodeci", "Blackstreet"], answer: "Boyz II Men" },
+    { id: 'rnb2', question: "Who sang 'Santa Baby' in 1953?", options: ["Etta James", "Eartha Kitt", "Ella Fitzgerald", "Nina Simone"], answer: "Eartha Kitt" },
+    { id: 'rnb3', question: "Donny Hathaway's 'This Christmas' year?", options: ["1970", "1975", "1980", "1985"], answer: "1970" },
+    { id: 'rnb4', question: "Who released '8 Days of Christmas'?", options: ["Destiny's Child", "TLC", "En Vogue", "SWV"], answer: "Destiny's Child" },
+    { id: 'rnb5', question: "Who performed 'Give Love on Christmas Day'?", options: ["Temptations", "Jackson 5", "Four Tops", "O'Jays"], answer: "Jackson 5" },
+    { id: 'rnb6', question: "Who released 'Someday at Christmas'?", options: ["Marvin Gaye", "Stevie Wonder", "Smokey Robinson", "Lionel Richie"], answer: "Stevie Wonder" },
     { id: 'rnb7', question: "Who sang 'Christmas in Hollis'?", options: ["Run-DMC", "Beastie Boys", "Public Enemy", "LL Cool J"], answer: "Run-DMC" },
-    { id: 'rnb8', question: "Which female artist released 'All I Want for Christmas Is You' in 1994?", options: ["Whitney Houston", "Mariah Carey", "Janet Jackson", "Mary J. Blige"], answer: "Mariah Carey" },
-    { id: 'rnb9', question: "What boy band released 'Merry Christmas, Happy Holidays'?", options: ["Backstreet Boys", "*NSYNC", "98 Degrees", "New Kids"], answer: "*NSYNC" },
-    { id: 'rnb10', question: "Who released 'Under the Mistletoe' album in 2011?", options: ["Chris Brown", "Justin Bieber", "Usher", "Ne-Yo"], answer: "Justin Bieber" },
+    { id: 'rnb8', question: "Who released 'Merry Christmas, Happy Holidays'?", options: ["Backstreet Boys", "*NSYNC", "98 Degrees", "New Kids"], answer: "*NSYNC" },
+    { id: 'rnb9', question: "Who released 'Under the Mistletoe' in 2011?", options: ["Chris Brown", "Justin Bieber", "Usher", "Ne-Yo"], answer: "Justin Bieber" },
+    { id: 'rnb10', question: "Which Motown act recorded 'I Saw Mommy Kissing Santa'?", options: ["Diana Ross", "Jackson 5", "Stevie Wonder", "Marvin Gaye"], answer: "Jackson 5" },
+    { id: 'rnb11', question: "Who sang 'The Christmas Song' (Chestnuts)?", options: ["Nat King Cole", "Sam Cooke", "Ray Charles", "Otis Redding"], answer: "Nat King Cole" },
+    { id: 'rnb12', question: "Which Whitney Houston Christmas song was a hit?", options: ["Do You Hear What I Hear", "Joy to the World", "Silent Night", "O Holy Night"], answer: "Do You Hear What I Hear" },
+    { id: 'rnb13', question: "Who had a 2007 hit remake of 'This Christmas'?", options: ["Chris Brown", "Usher", "Ne-Yo", "Trey Songz"], answer: "Chris Brown" },
+    { id: 'rnb14', question: "TLC released which Christmas song?", options: ["Sleigh Ride", "All I Want for Christmas", "Santa Claus Is Coming", "Winter Wonderland"], answer: "Sleigh Ride" },
+    { id: 'rnb15', question: "Which girl group sang 'Christmas Lullaby' in the 90s?", options: ["TLC", "En Vogue", "SWV", "Destiny's Child"], answer: "SWV" },
   ],
   afrobeats: [
-    { id: 'afro1', question: "Which Nigerian artist is known as 'Starboy'?", options: ["Davido", "Wizkid", "Burna Boy", "Olamide"], answer: "Wizkid" },
-    { id: 'afro2', question: "Who won the Grammy for Best Global Music Album in 2021?", options: ["Wizkid", "Burna Boy", "Davido", "Tiwa Savage"], answer: "Burna Boy" },
+    { id: 'afro1', question: "Which Nigerian artist is 'Starboy'?", options: ["Davido", "Wizkid", "Burna Boy", "Olamide"], answer: "Wizkid" },
+    { id: 'afro2', question: "Who won Grammy Best Global Music Album 2021?", options: ["Wizkid", "Burna Boy", "Davido", "Tiwa Savage"], answer: "Burna Boy" },
     { id: 'afro3', question: "What is Davido's real first name?", options: ["Daniel", "David", "Damola", "Dele"], answer: "David" },
     { id: 'afro4', question: "Which country is Burna Boy from?", options: ["Ghana", "Nigeria", "Kenya", "South Africa"], answer: "Nigeria" },
-    { id: 'afro5', question: "Who collaborated with Beyoncé on 'Brown Skin Girl'?", options: ["Burna Boy", "Wizkid", "Davido", "Mr Eazi"], answer: "Wizkid" },
-    { id: 'afro6', question: "What is the name of Wizkid's hit song with Drake?", options: ["One Dance", "Controlla", "Hotline Bling", "God's Plan"], answer: "One Dance" },
-    { id: 'afro7', question: "Which female Afrobeats artist is known as 'Mama Africa'?", options: ["Yemi Alade", "Tiwa Savage", "Simi", "Tems"], answer: "Yemi Alade" },
-    { id: 'afro8', question: "Who sang 'Essence' featuring Justin Bieber?", options: ["Davido", "Wizkid", "Burna Boy", "CKay"], answer: "Wizkid" },
-    { id: 'afro9', question: "What genre is often fused with Afrobeats?", options: ["Dancehall", "Reggae", "Hip-Hop", "All of these"], answer: "All of these" },
-    { id: 'afro10', question: "Which song by CKay went viral on TikTok?", options: ["Love Nwantiti", "Finesse", "Fall", "Soco"], answer: "Love Nwantiti" },
+    { id: 'afro5', question: "Who's on Beyoncé's 'Brown Skin Girl'?", options: ["Burna Boy", "Wizkid", "Davido", "Mr Eazi"], answer: "Wizkid" },
+    { id: 'afro6', question: "What's Wizkid's hit with Drake?", options: ["One Dance", "Controlla", "Hotline Bling", "God's Plan"], answer: "One Dance" },
+    { id: 'afro7', question: "Who is called 'Mama Africa'?", options: ["Yemi Alade", "Tiwa Savage", "Simi", "Tems"], answer: "Yemi Alade" },
+    { id: 'afro8', question: "Who sang 'Essence' ft. Justin Bieber?", options: ["Davido", "Wizkid", "Burna Boy", "CKay"], answer: "Wizkid" },
+    { id: 'afro9', question: "Which CKay song went viral on TikTok?", options: ["Love Nwantiti", "Finesse", "Fall", "Soco"], answer: "Love Nwantiti" },
+    { id: 'afro10', question: "What's Burna Boy's Grammy-winning album?", options: ["African Giant", "Twice as Tall", "Love, Damini", "Outside"], answer: "Twice as Tall" },
+    { id: 'afro11', question: "Who is 'OBO' (Omo Baba Olowo)?", options: ["Wizkid", "Davido", "Burna Boy", "Olamide"], answer: "Davido" },
+    { id: 'afro12', question: "Tems is from which country?", options: ["Ghana", "Nigeria", "Kenya", "South Africa"], answer: "Nigeria" },
+    { id: 'afro13', question: "Who sang 'Ye'?", options: ["Wizkid", "Davido", "Burna Boy", "Mr Eazi"], answer: "Burna Boy" },
+    { id: 'afro14', question: "Who featured on Drake's 'Fountains'?", options: ["Tems", "Tiwa Savage", "Simi", "Yemi Alade"], answer: "Tems" },
+    { id: 'afro15', question: "What is Tiwa Savage known as?", options: ["African Bad Girl", "Queen of Afrobeats", "Mama Africa", "African Queen"], answer: "African Bad Girl" },
   ],
   reggae: [
-    { id: 'reg1', question: "Who is known as the 'King of Reggae'?", options: ["Peter Tosh", "Bob Marley", "Jimmy Cliff", "Toots Hibbert"], answer: "Bob Marley" },
-    { id: 'reg2', question: "What is the name of Bob Marley's band?", options: ["The Wailers", "The Melodians", "Third World", "Inner Circle"], answer: "The Wailers" },
-    { id: 'reg3', question: "Which Jamaican city is considered the birthplace of reggae?", options: ["Montego Bay", "Kingston", "Ocho Rios", "Negril"], answer: "Kingston" },
-    { id: 'reg4', question: "What religion is closely associated with reggae music?", options: ["Christianity", "Islam", "Rastafari", "Buddhism"], answer: "Rastafari" },
+    { id: 'reg1', question: "Who is the 'King of Reggae'?", options: ["Peter Tosh", "Bob Marley", "Jimmy Cliff", "Toots Hibbert"], answer: "Bob Marley" },
+    { id: 'reg2', question: "What's Bob Marley's band called?", options: ["The Wailers", "The Melodians", "Third World", "Inner Circle"], answer: "The Wailers" },
+    { id: 'reg3', question: "Which city is reggae's birthplace?", options: ["Montego Bay", "Kingston", "Ocho Rios", "Negril"], answer: "Kingston" },
+    { id: 'reg4', question: "What religion is associated with reggae?", options: ["Christianity", "Islam", "Rastafari", "Buddhism"], answer: "Rastafari" },
     { id: 'reg5', question: "Who sang 'I Can See Clearly Now'?", options: ["Bob Marley", "Jimmy Cliff", "Johnny Nash", "Peter Tosh"], answer: "Johnny Nash" },
-    { id: 'reg6', question: "What is Sean Paul's music genre primarily?", options: ["Reggae", "Dancehall", "Ska", "Rocksteady"], answer: "Dancehall" },
-    { id: 'reg7', question: "Which reggae artist sang 'It Wasn't Me'?", options: ["Sean Paul", "Shaggy", "Beenie Man", "Buju Banton"], answer: "Shaggy" },
-    { id: 'reg8', question: "What Bob Marley song includes 'Every little thing gonna be alright'?", options: ["No Woman No Cry", "Three Little Birds", "One Love", "Redemption Song"], answer: "Three Little Birds" },
-    { id: 'reg9', question: "UB40 had a hit cover of which reggae classic?", options: ["One Love", "Red Red Wine", "Buffalo Soldier", "Stir It Up"], answer: "Red Red Wine" },
-    { id: 'reg10', question: "Which country, after Jamaica, has the largest reggae scene?", options: ["USA", "UK", "Japan", "Brazil"], answer: "UK" },
+    { id: 'reg6', question: "What's Sean Paul's genre primarily?", options: ["Reggae", "Dancehall", "Ska", "Rocksteady"], answer: "Dancehall" },
+    { id: 'reg7', question: "Who sang 'It Wasn't Me'?", options: ["Sean Paul", "Shaggy", "Beenie Man", "Buju Banton"], answer: "Shaggy" },
+    { id: 'reg8', question: "Which Marley song says 'Every little thing gonna be alright'?", options: ["No Woman No Cry", "Three Little Birds", "One Love", "Redemption Song"], answer: "Three Little Birds" },
+    { id: 'reg9', question: "UB40 covered which song?", options: ["One Love", "Red Red Wine", "Buffalo Soldier", "Stir It Up"], answer: "Red Red Wine" },
+    { id: 'reg10', question: "Biggest reggae scene after Jamaica?", options: ["USA", "UK", "Japan", "Brazil"], answer: "UK" },
+    { id: 'reg11', question: "What year did Bob Marley die?", options: ["1979", "1981", "1983", "1985"], answer: "1981" },
+    { id: 'reg12', question: "Which Marley album is his masterpiece?", options: ["Exodus", "Legend", "Kaya", "Uprising"], answer: "Exodus" },
+    { id: 'reg13', question: "Who sang 'The Harder They Come'?", options: ["Bob Marley", "Jimmy Cliff", "Peter Tosh", "Bunny Wailer"], answer: "Jimmy Cliff" },
+    { id: 'reg14', question: "What does 'Jah' mean in Rastafari?", options: ["Peace", "Love", "God", "King"], answer: "God" },
+    { id: 'reg15', question: "Which Marley song is a freedom anthem?", options: ["Buffalo Soldier", "Redemption Song", "Jamming", "Stir It Up"], answer: "Redemption Song" },
   ],
   popculture: [
-    { id: 'pop1', question: "What social media platform is known for short videos and went viral in 2020?", options: ["Instagram", "TikTok", "Snapchat", "Twitter"], answer: "TikTok" },
-    { id: 'pop2', question: "Which streaming service released 'Squid Game'?", options: ["Amazon Prime", "Netflix", "Disney+", "Hulu"], answer: "Netflix" },
-    { id: 'pop3', question: "What is Taylor Swift's 2024 concert tour called?", options: ["Reputation Tour", "Eras Tour", "1989 Tour", "Lover Tour"], answer: "Eras Tour" },
-    { id: 'pop4', question: "Which artist released 'Anti-Hero' in 2022?", options: ["Beyoncé", "Taylor Swift", "Dua Lipa", "Adele"], answer: "Taylor Swift" },
-    { id: 'pop5', question: "What Marvel movie was the highest-grossing film of 2019?", options: ["Infinity War", "Endgame", "Far From Home", "Captain Marvel"], answer: "Endgame" },
-    { id: 'pop6', question: "What is the name of the viral AI chatbot released by OpenAI?", options: ["Siri", "Alexa", "ChatGPT", "Cortana"], answer: "ChatGPT" },
-    { id: 'pop7', question: "Which song by Miley Cyrus went viral in 2023?", options: ["Wrecking Ball", "Flowers", "Midnight Sky", "Party in the USA"], answer: "Flowers" },
-    { id: 'pop8', question: "What is the name of Beyoncé's 2022 album?", options: ["Lemonade", "Renaissance", "4", "Beyoncé"], answer: "Renaissance" },
-    { id: 'pop9', question: "Which animated movie features a song 'We Don't Talk About Bruno'?", options: ["Coco", "Encanto", "Moana", "Frozen"], answer: "Encanto" },
-    { id: 'pop10', question: "What video game character says 'It's-a me!'?", options: ["Sonic", "Mario", "Link", "Pikachu"], answer: "Mario" },
+    { id: 'pop1', question: "Which platform is known for short videos?", options: ["Instagram", "TikTok", "Snapchat", "Twitter"], answer: "TikTok" },
+    { id: 'pop2', question: "Which service released Squid Game?", options: ["Amazon Prime", "Netflix", "Disney+", "Hulu"], answer: "Netflix" },
+    { id: 'pop3', question: "What's Taylor Swift's 2024 tour called?", options: ["Reputation Tour", "Eras Tour", "1989 Tour", "Lover Tour"], answer: "Eras Tour" },
+    { id: 'pop4', question: "Who released 'Anti-Hero' in 2022?", options: ["Beyoncé", "Taylor Swift", "Dua Lipa", "Adele"], answer: "Taylor Swift" },
+    { id: 'pop5', question: "Highest-grossing Marvel film of 2019?", options: ["Infinity War", "Endgame", "Far From Home", "Captain Marvel"], answer: "Endgame" },
+    { id: 'pop6', question: "What's OpenAI's chatbot called?", options: ["Siri", "Alexa", "ChatGPT", "Cortana"], answer: "ChatGPT" },
+    { id: 'pop7', question: "Which Miley song went viral in 2023?", options: ["Wrecking Ball", "Flowers", "Midnight Sky", "Party in the USA"], answer: "Flowers" },
+    { id: 'pop8', question: "What's Beyoncé's 2022 album?", options: ["Lemonade", "Renaissance", "4", "Beyoncé"], answer: "Renaissance" },
+    { id: 'pop9', question: "Which movie has 'We Don't Talk About Bruno'?", options: ["Coco", "Encanto", "Moana", "Frozen"], answer: "Encanto" },
+    { id: 'pop10', question: "Which game character says 'It's-a me!'?", options: ["Sonic", "Mario", "Link", "Pikachu"], answer: "Mario" },
+    { id: 'pop11', question: "Most followed person on Instagram?", options: ["Kylie Jenner", "Cristiano Ronaldo", "Selena Gomez", "Kim Kardashian"], answer: "Cristiano Ronaldo" },
+    { id: 'pop12', question: "What's Elon Musk's space company?", options: ["Blue Origin", "SpaceX", "Virgin Galactic", "NASA"], answer: "SpaceX" },
+    { id: 'pop13', question: "Which K-pop group performed at 2022 Grammys?", options: ["BLACKPINK", "BTS", "EXO", "TWICE"], answer: "BTS" },
+    { id: 'pop14', question: "Which social media did Musk acquire?", options: ["Facebook", "Instagram", "Twitter", "TikTok"], answer: "Twitter" },
+    { id: 'pop15', question: "Which movie features the song 'Shallow'?", options: ["La La Land", "A Star Is Born", "Greatest Showman", "Bohemian Rhapsody"], answer: "A Star Is Born" },
   ],
   children: [
-    { id: 'ch1', question: "What color is Rudolph's nose?", options: ["Blue", "Green", "Red", "Yellow"], answer: "Red", emoji: "🔴" },
-    { id: 'ch2', question: "How many reindeer pull Santa's sleigh (including Rudolph)?", options: ["7", "8", "9", "10"], answer: "9" },
-    { id: 'ch3', question: "What do we leave out for Santa on Christmas Eve?", options: ["Pizza", "Cookies and milk", "Cake", "Ice cream"], answer: "Cookies and milk" },
-    { id: 'ch4', question: "What do Santa's helpers make?", options: ["Cars", "Toys", "Houses", "Computers"], answer: "Toys" },
+    { id: 'ch1', question: "What color is Rudolph's nose?", options: ["Blue", "Green", "Red", "Yellow"], answer: "Red" },
+    { id: 'ch2', question: "How many reindeer pull Santa's sleigh with Rudolph?", options: ["7", "8", "9", "10"], answer: "9" },
+    { id: 'ch3', question: "What do we leave for Santa?", options: ["Pizza", "Cookies and milk", "Cake", "Ice cream"], answer: "Cookies and milk" },
+    { id: 'ch4', question: "What do elves make?", options: ["Cars", "Toys", "Houses", "Computers"], answer: "Toys" },
     { id: 'ch5', question: "What does Santa say?", options: ["Yo yo yo!", "Ho ho ho!", "Hey hey hey!", "Ha ha ha!"], answer: "Ho ho ho!" },
     { id: 'ch6', question: "Where does Santa live?", options: ["South Pole", "North Pole", "Iceland", "Moon"], answer: "North Pole" },
-    { id: 'ch7', question: "What do you put on top of a Christmas tree?", options: ["Hat", "Star or Angel", "Balloon", "Candle"], answer: "Star or Angel", emoji: "⭐" },
-    { id: 'ch8', question: "What cold person has a carrot nose?", options: ["Ice man", "Snowman", "Frost boy", "Winter wizard"], answer: "Snowman", emoji: "⛄" },
-    { id: 'ch9', question: "What shape is a candy cane?", options: ["Circle", "Square", "Hook shape", "Triangle"], answer: "Hook shape", emoji: "🍬" },
-    { id: 'ch10', question: "In 'Frozen', what is the snowman's name?", options: ["Oscar", "Oliver", "Olaf", "Oreo"], answer: "Olaf" },
+    { id: 'ch7', question: "What goes on top of the tree?", options: ["Hat", "Star or Angel", "Balloon", "Candle"], answer: "Star or Angel" },
+    { id: 'ch8', question: "What has a carrot nose?", options: ["Ice man", "Snowman", "Frost boy", "Winter wizard"], answer: "Snowman" },
+    { id: 'ch9', question: "What shape is a candy cane?", options: ["Circle", "Square", "Hook shape", "Triangle"], answer: "Hook shape" },
+    { id: 'ch10', question: "In Frozen, what's the snowman's name?", options: ["Oscar", "Oliver", "Olaf", "Oreo"], answer: "Olaf" },
+    { id: 'ch11', question: "What color is Santa's suit?", options: ["Blue", "Green", "Red", "White"], answer: "Red" },
+    { id: 'ch12', question: "What do elves have on their ears?", options: ["Earrings", "Points", "Fur", "Nothing"], answer: "Points" },
+    { id: 'ch13', question: "What falls from the sky in winter?", options: ["Rain", "Leaves", "Snow", "Flowers"], answer: "Snow" },
+    { id: 'ch14', question: "What do you hang for Santa to fill?", options: ["Pictures", "Stockings", "Hats", "Shoes"], answer: "Stockings" },
+    { id: 'ch15', question: "Which song has 'Jingle bells, jingle bells'?", options: ["Silent Night", "Jingle Bells", "Rudolph", "Frosty"], answer: "Jingle Bells" },
   ],
   bible: [
-    { id: 'bib1', question: "In what town was Jesus born?", options: ["Jerusalem", "Nazareth", "Bethlehem", "Galilee"], answer: "Bethlehem" },
-    { id: 'bib2', question: "What gifts did the Three Wise Men bring?", options: ["Food, clothes, toys", "Gold, frankincense, myrrh", "Money, jewels, silk", "Bread, wine, oil"], answer: "Gold, frankincense, myrrh" },
-    { id: 'bib3', question: "Where did Mary and Joseph stay when Jesus was born?", options: ["An inn", "A stable/manger", "A tent", "Their home"], answer: "A stable/manger" },
-    { id: 'bib4', question: "Who told Mary she would have a baby?", options: ["Joseph", "Gabriel", "Michael", "Peter"], answer: "Gabriel" },
-    { id: 'bib5', question: "What was Jesus laid in after he was born?", options: ["A bed", "A basket", "A manger", "A cradle"], answer: "A manger" },
-    { id: 'bib6', question: "Who was the king that tried to find baby Jesus?", options: ["David", "Solomon", "Herod", "Caesar"], answer: "Herod" },
-    { id: 'bib7', question: "What guided the Wise Men to Jesus?", options: ["A map", "An angel", "A star", "A vision"], answer: "A star" },
-    { id: 'bib8', question: "Who were the first visitors to see baby Jesus?", options: ["Kings", "Shepherds", "Soldiers", "Priests"], answer: "Shepherds" },
-    { id: 'bib9', question: "What did the angels tell the shepherds?", options: ["Run away", "Good news of great joy", "Be afraid", "Stay home"], answer: "Good news of great joy" },
-    { id: 'bib10', question: "What does 'Emmanuel' mean?", options: ["Son of David", "Prince of Peace", "God with us", "Mighty King"], answer: "God with us" },
-    { id: 'bib11', question: "Which Gospel has the most detailed birth narrative?", options: ["Matthew", "Mark", "Luke", "John"], answer: "Luke" },
-    { id: 'bib12', question: "What was Joseph's occupation?", options: ["Fisherman", "Carpenter", "Tax collector", "Shepherd"], answer: "Carpenter" },
-    // Medium to Difficult
-    { id: 'bib13', question: "Why did Mary and Joseph travel to Bethlehem?", options: ["To visit family", "For a census", "To escape Herod", "For Passover"], answer: "For a census" },
-    { id: 'bib14', question: "Which Roman Emperor ordered the census?", options: ["Nero", "Augustus", "Tiberius", "Claudius"], answer: "Augustus" },
-    { id: 'bib15', question: "What prophet foretold the Messiah would be born in Bethlehem?", options: ["Isaiah", "Micah", "Jeremiah", "Daniel"], answer: "Micah" },
-    { id: 'bib16', question: "How many Wise Men does the Bible actually say visited Jesus?", options: ["Three", "Two", "Twelve", "It doesn't say"], answer: "It doesn't say" },
-    { id: 'bib17', question: "Where did the Wise Men come from?", options: ["Egypt", "The East", "Rome", "Greece"], answer: "The East" },
-    { id: 'bib18', question: "What warning did the Wise Men receive in a dream?", options: ["Leave immediately", "Don't return to Herod", "Go to Egypt", "Tell no one"], answer: "Don't return to Herod" },
-    { id: 'bib19', question: "Where did Mary, Joseph and Jesus flee to escape Herod?", options: ["Nazareth", "Jerusalem", "Egypt", "Jordan"], answer: "Egypt" },
-    { id: 'bib20', question: "What was the name of the prophetess who recognized Jesus at the temple?", options: ["Anna", "Elizabeth", "Mary", "Martha"], answer: "Anna" },
-    { id: 'bib21', question: "Who was the elderly man at the temple who blessed baby Jesus?", options: ["Zacharias", "Simeon", "Joseph", "Nicodemus"], answer: "Simeon" },
-    { id: 'bib22', question: "What did Simeon call Jesus when he saw him?", options: ["King of Kings", "A light for revelation to the Gentiles", "Son of David", "Lamb of God"], answer: "A light for revelation to the Gentiles" },
-    { id: 'bib23', question: "Elizabeth was Mary's relative. Who was Elizabeth's husband?", options: ["Joseph", "Simeon", "Zacharias", "Herod"], answer: "Zacharias" },
-    { id: 'bib24', question: "What happened to Zacharias when he doubted Gabriel?", options: ["He went blind", "He became mute", "He fell ill", "Nothing"], answer: "He became mute" },
-    { id: 'bib25', question: "Who was Elizabeth's son?", options: ["James", "John the Baptist", "Peter", "Andrew"], answer: "John the Baptist" },
-    { id: 'bib26', question: "What does 'Bethlehem' mean in Hebrew?", options: ["City of David", "House of Bread", "Place of Peace", "God's Dwelling"], answer: "House of Bread" },
-    { id: 'bib27', question: "Which Old Testament figure is called a 'type' of Christ and was born in Bethlehem?", options: ["Moses", "David", "Abraham", "Jacob"], answer: "David" },
-    { id: 'bib28', question: "What cruel act did Herod order to try to kill Jesus?", options: ["Burned villages", "Massacre of infant boys", "Poisoned wells", "Tax on families"], answer: "Massacre of infant boys" },
-    { id: 'bib29', question: "Isaiah 7:14 prophesied that a virgin would conceive. What name did it say the child would be called?", options: ["Jesus", "Emmanuel", "Messiah", "Wonderful"], answer: "Emmanuel" },
-    { id: 'bib30', question: "In Luke's Gospel, what song did Mary sing praising God?", options: ["The Benedictus", "The Magnificat", "The Gloria", "The Nunc Dimittis"], answer: "The Magnificat" },
+    { id: 'bib1', question: "Where was Jesus born?", options: ["Jerusalem", "Nazareth", "Bethlehem", "Galilee"], answer: "Bethlehem" },
+    { id: 'bib2', question: "What gifts did the Wise Men bring?", options: ["Food, clothes", "Gold, frankincense, myrrh", "Money, jewels", "Bread, wine"], answer: "Gold, frankincense, myrrh" },
+    { id: 'bib3', question: "Where was Jesus laid after birth?", options: ["A bed", "A basket", "A manger", "A cradle"], answer: "A manger" },
+    { id: 'bib4', question: "Who told Mary she'd have a baby?", options: ["Joseph", "Gabriel", "Michael", "Peter"], answer: "Gabriel" },
+    { id: 'bib5', question: "Who tried to harm baby Jesus?", options: ["David", "Solomon", "Herod", "Caesar"], answer: "Herod" },
+    { id: 'bib6', question: "What guided the Wise Men?", options: ["A map", "An angel", "A star", "A vision"], answer: "A star" },
+    { id: 'bib7', question: "Who first visited baby Jesus?", options: ["Kings", "Shepherds", "Soldiers", "Priests"], answer: "Shepherds" },
+    { id: 'bib8', question: "What does 'Emmanuel' mean?", options: ["Son of David", "Prince of Peace", "God with us", "Mighty King"], answer: "God with us" },
+    { id: 'bib9', question: "What was Joseph's job?", options: ["Fisherman", "Carpenter", "Tax collector", "Shepherd"], answer: "Carpenter" },
+    { id: 'bib10', question: "Why did they go to Bethlehem?", options: ["Visit family", "For a census", "Escape Herod", "For Passover"], answer: "For a census" },
+    { id: 'bib11', question: "Which Roman Emperor ordered the census?", options: ["Nero", "Augustus", "Tiberius", "Claudius"], answer: "Augustus" },
+    { id: 'bib12', question: "Which prophet foretold Bethlehem?", options: ["Isaiah", "Micah", "Jeremiah", "Daniel"], answer: "Micah" },
+    { id: 'bib13', question: "Where did the family flee to?", options: ["Nazareth", "Jerusalem", "Egypt", "Jordan"], answer: "Egypt" },
+    { id: 'bib14', question: "What does 'Bethlehem' mean?", options: ["City of David", "House of Bread", "Place of Peace", "God's Dwelling"], answer: "House of Bread" },
+    { id: 'bib15', question: "Which Gospel has the most birth details?", options: ["Matthew", "Mark", "Luke", "John"], answer: "Luke" },
   ],
   food: [
-    { id: 'f1', question: "What country does sushi originate from?", options: ["China", "Korea", "Japan", "Thailand"], answer: "Japan" },
-    { id: 'f2', question: "What is the main ingredient in guacamole?", options: ["Tomato", "Avocado", "Pepper", "Onion"], answer: "Avocado" },
-    { id: 'f3', question: "What type of pasta is shaped like bow ties?", options: ["Penne", "Fusilli", "Farfalle", "Rigatoni"], answer: "Farfalle" },
-    { id: 'f4', question: "What is the most consumed beverage after water?", options: ["Coffee", "Tea", "Beer", "Soft drinks"], answer: "Tea" },
-    { id: 'f5', question: "What country does paella originate from?", options: ["Mexico", "Italy", "Spain", "Portugal"], answer: "Spain" },
+    { id: 'f1', question: "Where does sushi come from?", options: ["China", "Korea", "Japan", "Thailand"], answer: "Japan" },
+    { id: 'f2', question: "Main ingredient in guacamole?", options: ["Tomato", "Avocado", "Pepper", "Onion"], answer: "Avocado" },
+    { id: 'f3', question: "What pasta is bow tie shaped?", options: ["Penne", "Fusilli", "Farfalle", "Rigatoni"], answer: "Farfalle" },
+    { id: 'f4', question: "Most consumed beverage after water?", options: ["Coffee", "Tea", "Beer", "Soft drinks"], answer: "Tea" },
+    { id: 'f5', question: "Where does paella come from?", options: ["Mexico", "Italy", "Spain", "Portugal"], answer: "Spain" },
+    { id: 'f6', question: "Traditional pizza cheese?", options: ["Cheddar", "Mozzarella", "Parmesan", "Gouda"], answer: "Mozzarella" },
+    { id: 'f7', question: "Main ingredient in hummus?", options: ["Lentils", "Chickpeas", "Black beans", "Fava beans"], answer: "Chickpeas" },
+    { id: 'f8', question: "Which is the 'king of fruits'?", options: ["Mango", "Durian", "Jackfruit", "Pineapple"], answer: "Durian" },
+    { id: 'f9', question: "What is tofu made from?", options: ["Rice", "Wheat", "Soybeans", "Corn"], answer: "Soybeans" },
+    { id: 'f10', question: "What pastry is used for croissants?", options: ["Shortcrust", "Puff pastry", "Filo", "Choux"], answer: "Puff pastry" },
+    { id: 'f11', question: "Which country invented pizza?", options: ["USA", "Greece", "Italy", "France"], answer: "Italy" },
+    { id: 'f12', question: "What gives bread its holes?", options: ["Baking soda", "Yeast", "Salt", "Sugar"], answer: "Yeast" },
+    { id: 'f13', question: "What nut makes marzipan?", options: ["Walnut", "Cashew", "Almond", "Pistachio"], answer: "Almond" },
+    { id: 'f14', question: "Hottest chili pepper (2024)?", options: ["Ghost Pepper", "Carolina Reaper", "Pepper X", "Trinidad Scorpion"], answer: "Pepper X" },
+    { id: 'f15', question: "Where is Gouda cheese from?", options: ["France", "Switzerland", "Netherlands", "Germany"], answer: "Netherlands" },
   ],
   geography: [
-    { id: 'geo1', question: "What is the capital of Canada?", options: ["Toronto", "Vancouver", "Ottawa", "Montreal"], answer: "Ottawa" },
-    { id: 'geo2', question: "What is the tallest mountain in the world?", options: ["K2", "Kangchenjunga", "Mount Everest", "Lhotse"], answer: "Mount Everest" },
-    { id: 'geo3', question: "What is the largest desert in the world?", options: ["Sahara", "Arabian", "Gobi", "Antarctic"], answer: "Antarctic" },
-    { id: 'geo4', question: "What country is known as the Land of the Rising Sun?", options: ["China", "Korea", "Japan", "Thailand"], answer: "Japan" },
-    { id: 'geo5', question: "Which river flows through London?", options: ["Seine", "Thames", "Danube", "Rhine"], answer: "Thames" },
+    { id: 'g1', question: "Largest country by area?", options: ["China", "USA", "Canada", "Russia"], answer: "Russia" },
+    { id: 'g2', question: "Smallest country in the world?", options: ["Monaco", "Vatican City", "San Marino", "Liechtenstein"], answer: "Vatican City" },
+    { id: 'g3', question: "Longest river?", options: ["Amazon", "Nile", "Yangtze", "Mississippi"], answer: "Nile" },
+    { id: 'g4', question: "Capital of Australia?", options: ["Sydney", "Melbourne", "Canberra", "Perth"], answer: "Canberra" },
+    { id: 'g5', question: "Country with most people?", options: ["USA", "India", "China", "Indonesia"], answer: "India" },
+    { id: 'g6', question: "Highest mountain?", options: ["K2", "Kangchenjunga", "Everest", "Lhotse"], answer: "Everest" },
+    { id: 'g7', question: "Largest ocean?", options: ["Atlantic", "Indian", "Pacific", "Arctic"], answer: "Pacific" },
+    { id: 'g8', question: "Capital of Canada?", options: ["Toronto", "Vancouver", "Montreal", "Ottawa"], answer: "Ottawa" },
+    { id: 'g9', question: "Largest hot desert?", options: ["Gobi", "Sahara", "Arabian", "Kalahari"], answer: "Sahara" },
+    { id: 'g10', question: "Capital of Japan?", options: ["Osaka", "Kyoto", "Tokyo", "Yokohama"], answer: "Tokyo" },
+    { id: 'g11', question: "Country with most islands?", options: ["Indonesia", "Philippines", "Sweden", "Finland"], answer: "Sweden" },
+    { id: 'g12', question: "Longest European river?", options: ["Danube", "Rhine", "Volga", "Seine"], answer: "Volga" },
+    { id: 'g13', question: "Which African country was never colonized?", options: ["Nigeria", "Kenya", "Ethiopia", "Ghana"], answer: "Ethiopia" },
+    { id: 'g14', question: "Strait between Europe and Africa?", options: ["Bosphorus", "Gibraltar", "Hormuz", "Malacca"], answer: "Gibraltar" },
+    { id: 'g15', question: "Capital of Brazil?", options: ["Rio", "São Paulo", "Brasília", "Salvador"], answer: "Brasília" },
   ],
   anagram: [
-    { id: 'ana1', scrambled: "TANSA SLAUC", answer: "SANTA CLAUS", hint: "The big man himself 🎅" },
-    { id: 'ana2', scrambled: "NEDIREER", answer: "REINDEER", hint: "Santa's transport animals 🦌" },
-    { id: 'ana3', scrambled: "WONS KEFLSA", answer: "SNOWFLAKES", hint: "Frozen water from the sky ❄️" },
-    { id: 'ana4', scrambled: "GOCKINTS", answer: "STOCKINGS", hint: "Hung by the fireplace 🧦" },
-    { id: 'ana5', scrambled: "SLINTE", answer: "TINSEL", hint: "Sparkly tree decoration ✨" },
-    { id: 'ana6', scrambled: "LORAC SNIGESR", answer: "CAROL SINGERS", hint: "Door-to-door performers 🎶" },
-    { id: 'ana7', scrambled: "DRE NOSE", answer: "RED NOSE", hint: "Rudolph's famous feature 🔴" },
-    { id: 'ana8', scrambled: "YIVNTITA", answer: "NATIVITY", hint: "Scene of Jesus' birth 🌟" },
-    { id: 'ana9', scrambled: "LOJLY", answer: "JOLLY", hint: "Happy and cheerful 😊" },
-    { id: 'ana10', scrambled: "SLEB JIENLG", answer: "JINGLE BELLS", hint: "Famous Christmas song 🔔" },
+    { id: 'ana1', scrambled: "TANSA SLAUC", answer: "SANTA CLAUS", hint: "The big man himself" },
+    { id: 'ana2', scrambled: "NEDIREER", answer: "REINDEER", hint: "Pulls the sleigh" },
+    { id: 'ana3', scrambled: "WONS KEFLSA", answer: "SNOWFLAKES", hint: "Fall from winter sky" },
+    { id: 'ana4', scrambled: "LORAC", answer: "CAROL", hint: "Christmas song" },
+    { id: 'ana5', scrambled: "HOTCNGSKI", answer: "STOCKING", hint: "Hung by fireplace" },
+    { id: 'ana6', scrambled: "LEGNA", answer: "ANGEL", hint: "Top of tree" },
+    { id: 'ana7', scrambled: "ROTFSY", answer: "FROSTY", hint: "The Snowman" },
+    { id: 'ana8', scrambled: "PRETNSES", answer: "PRESENTS", hint: "Under the tree" },
+    { id: 'ana9', scrambled: "GLIHES", answer: "SLEIGH", hint: "Santa's transport" },
+    { id: 'ana10', scrambled: "CNAELD", answer: "CANDLE", hint: "Gives light and warmth" },
+    { id: 'ana11', scrambled: "HTAREW", answer: "WREATH", hint: "Hung on doors" },
+    { id: 'ana12', scrambled: "BRIBNO", answer: "RIBBON", hint: "Decorates gifts" },
+    { id: 'ana13', scrambled: "LOLYH", answer: "HOLLY", hint: "Red berries, green leaves" },
+    { id: 'ana14', scrambled: "CHMEYNI", answer: "CHIMNEY", hint: "Santa's entrance" },
+    { id: 'ana15', scrambled: "SLITEMEN", answer: "MISTLETOE", hint: "Kiss underneath" },
   ],
   riddles: [
-    { id: 'rid1', question: "I'm tall when I'm young, short when I'm old. Every Christmas I stand in the corner. What am I?", answer: "A candle", options: ["A candle", "A Christmas tree", "An elf", "A snowman"] },
-    { id: 'rid2', question: "I have a head but no body, a heart but no blood. What am I?", answer: "A lettuce", options: ["A snowman", "A lettuce", "A cabbage", "A carrot"] },
-    { id: 'rid3', question: "What has hands but can't clap?", answer: "A clock", options: ["A clock", "A snowman", "A toy", "A glove"] },
-    { id: 'rid4', question: "I fall but never get hurt. What am I?", answer: "Snow", options: ["Rain", "Snow", "A leaf", "Night"] },
-    { id: 'rid5', question: "What can you catch but not throw?", answer: "A cold", options: ["A ball", "A cold", "A fish", "A bus"] },
-    { id: 'rid6', question: "I have branches but no leaves. What am I?", answer: "A bank", options: ["A bank", "A dead tree", "A river", "A family"] },
-    { id: 'rid7', question: "What gets wetter the more it dries?", answer: "A towel", options: ["Ice", "A towel", "A sponge", "Snow"] },
-    { id: 'rid8', question: "What has a thumb and four fingers but isn't alive?", answer: "A glove", options: ["A hand", "A mitten", "A glove", "A robot"] },
-    { id: 'rid9', question: "What has keys but no locks?", answer: "A piano", options: ["A map", "A keyboard", "A piano", "A car"] },
-    { id: 'rid10', question: "What goes up but never comes down?", answer: "Your age", options: ["A balloon", "Your age", "Smoke", "A plane"] },
+    { id: 'rid1', question: "I'm tall when young, short when old. I stand in corners at Christmas. What am I?", answer: "A candle", options: ["A candle", "Christmas tree", "An elf", "Snowman"] },
+    { id: 'rid2', question: "What has hands but can't clap?", answer: "A clock", options: ["A clock", "A snowman", "A toy", "A glove"] },
+    { id: 'rid3', question: "I fall but never get hurt. What am I?", answer: "Snow", options: ["Rain", "Snow", "A leaf", "Night"] },
+    { id: 'rid4', question: "What can you catch but not throw?", answer: "A cold", options: ["A ball", "A cold", "A fish", "A bus"] },
+    { id: 'rid5', question: "What gets wetter the more it dries?", answer: "A towel", options: ["Ice", "A towel", "A sponge", "Snow"] },
+    { id: 'rid6', question: "What has four fingers and a thumb but isn't alive?", answer: "A glove", options: ["A hand", "A mitten", "A glove", "A robot"] },
+    { id: 'rid7', question: "What has keys but no locks?", answer: "A piano", options: ["A map", "A keyboard", "A piano", "A car"] },
+    { id: 'rid8', question: "What goes up but never comes down?", answer: "Your age", options: ["A balloon", "Your age", "Smoke", "A plane"] },
+    { id: 'rid9', question: "What has a head and tail but no body?", answer: "A coin", options: ["A snake", "A coin", "A comet", "A fish"] },
+    { id: 'rid10', question: "What comes once in a minute, twice in a moment, never in a thousand years?", answer: "The letter M", options: ["Time", "The letter M", "A second", "A breath"] },
+    { id: 'rid11', question: "What travels around the world but stays in a corner?", answer: "A stamp", options: ["A stamp", "A globe", "The internet", "A passport"] },
+    { id: 'rid12', question: "What has many teeth but cannot bite?", answer: "A comb", options: ["A saw", "A comb", "A zipper", "A gear"] },
+    { id: 'rid13', question: "What building has the most stories?", answer: "A library", options: ["Skyscraper", "A library", "A hotel", "A museum"] },
+    { id: 'rid14', question: "What can you hold without touching?", answer: "Your breath", options: ["A thought", "Your breath", "Conversation", "A promise"] },
+    { id: 'rid15', question: "What runs but never walks?", answer: "Water", options: ["Time", "Water", "A nose", "A refrigerator"] },
   ],
 };
 
@@ -325,7 +388,6 @@ const Snowflakes = () => (
   </div>
 );
 
-// Family access code - change this to your own secret code!
 const FAMILY_ACCESS_CODE = "JACKSON2024";
 
 export default function App() {
@@ -352,107 +414,72 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const lastTickRef = useRef(null);
   const timerExpiredRef = useRef(false);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [questionsPerCategory, setQuestionsPerCategory] = useState(5);
+  const [showTournamentSetup, setShowTournamentSetup] = useState(false);
 
-  // Initialize
   useEffect(() => {
-    // Check if already has access
     const savedAccess = localStorage.getItem('familyAccess');
-    if (savedAccess === FAMILY_ACCESS_CODE) {
-      setHasAccess(true);
-    }
-    
+    if (savedAccess === FAMILY_ACCESS_CODE) setHasAccess(true);
     let id = localStorage.getItem('playerId');
     if (!id) { id = 'p_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('playerId', id); }
     setPlayerId(id);
     const savedName = localStorage.getItem('playerName');
     if (savedName) setPlayerName(savedName);
     document.addEventListener('click', () => soundManager.init(), { once: true });
-    
-    // Cleanup expired rooms (run once on load for hosts)
     cleanupExpiredRooms();
   }, []);
 
-  // Cleanup expired rooms
   const cleanupExpiredRooms = async () => {
     const expireTime = Date.now() - ROOM_EXPIRY_MS;
-    const roomsRef = ref(db, 'rooms');
-    const snapshot = await get(roomsRef);
+    const snapshot = await get(ref(db, 'rooms'));
     if (snapshot.exists()) {
-      const rooms = snapshot.val();
-      Object.entries(rooms).forEach(([code, room]) => {
-        if (room.createdAt < expireTime) {
-          remove(ref(db, `rooms/${code}`));
-        }
+      Object.entries(snapshot.val()).forEach(([code, room]) => {
+        if (room.createdAt < expireTime) remove(ref(db, `rooms/${code}`));
       });
     }
   };
 
-  // Connection monitor
   useEffect(() => {
     const connRef = ref(db, '.info/connected');
     onValue(connRef, (snap) => setConnected(snap.val() === true));
     return () => off(connRef);
   }, []);
 
-  // Room listener
   useEffect(() => {
     if (!roomCode) return;
     const roomRef = ref(db, `rooms/${roomCode}`);
     onValue(roomRef, (snap) => {
       const data = snap.val();
-      if (data) {
-        setGameState(data.game || null);
-        setPlayers(data.players || {});
-      } else if (!isHost) {
-        alert('Game ended by host');
-        leaveGame();
-      }
+      if (data) { setGameState(data.game || null); setPlayers(data.players || {}); }
+      else if (!isHost) { alert('Game ended'); leaveGame(); }
     });
     return () => off(roomRef);
   }, [roomCode, isHost]);
 
-  // Timer
   useEffect(() => {
     if (!gameState?.timerEnd) return;
     timerExpiredRef.current = false;
     const updateTimer = () => {
       const remaining = Math.max(0, Math.ceil((gameState.timerEnd - Date.now()) / 1000));
       setLocalTimer(remaining);
-      if (remaining <= 5 && remaining > 0 && remaining !== lastTickRef.current) {
-        soundManager.playTick();
-        lastTickRef.current = remaining;
-      }
-      if (remaining === 0 && !timerExpiredRef.current) {
-        timerExpiredRef.current = true;
-        soundManager.playTimeUp();
-        if (isHost && gameState.phase !== 'reveal') handleTimeUp();
-      }
+      if (remaining <= 5 && remaining > 0 && remaining !== lastTickRef.current) { soundManager.playTick(); lastTickRef.current = remaining; }
+      if (remaining === 0 && !timerExpiredRef.current) { timerExpiredRef.current = true; soundManager.playTimeUp(); if (isHost && gameState.phase !== 'reveal') handleTimeUp(); }
     };
     updateTimer();
     const interval = setInterval(updateTimer, 100);
     return () => clearInterval(interval);
   }, [gameState?.timerEnd, gameState?.phase, isHost]);
 
-  // Reset on new question
   useEffect(() => {
-    if (gameState?.questionIndex !== undefined) {
-      setSelectedAnswer(null);
-      setTypedAnswer('');
-      setHasAnswered(false);
-      lastTickRef.current = null;
-      timerExpiredRef.current = false;
-    }
+    if (gameState?.questionIndex !== undefined) { setSelectedAnswer(null); setTypedAnswer(''); setHasAnswered(false); lastTickRef.current = null; timerExpiredRef.current = false; }
   }, [gameState?.questionIndex]);
 
-  // Buzzer sound
   useEffect(() => {
     if (gameState?.buzzedPlayer && gameState?.phase === 'answering') soundManager.playBuzzer();
   }, [gameState?.buzzedPlayer, gameState?.phase]);
 
-  const handleTimeUp = async () => {
-    if (!isHost) return;
-    await update(ref(db, `rooms/${roomCode}/game`), { phase: 'reveal' });
-  };
+  const handleTimeUp = async () => { if (isHost) await update(ref(db, `rooms/${roomCode}/game`), { phase: 'reveal' }); };
 
   const createGame = async () => {
     if (!playerName.trim()) return alert('Enter your name');
@@ -460,17 +487,11 @@ export default function App() {
     soundManager.playClick();
     const code = generateRoomCode();
     await set(ref(db, `rooms/${code}`), {
-      host: playerId,
-      hostName: playerName.trim(),
-      createdAt: Date.now(),
-      password: usePassword ? roomPassword : null,
-      game: { status: 'lobby' },
-      players: { [playerId]: { name: playerName.trim(), score: 0, isHost: true, joinedAt: Date.now() } }
+      host: playerId, hostName: playerName.trim(), createdAt: Date.now(), password: usePassword ? roomPassword : null,
+      game: { status: 'lobby' }, players: { [playerId]: { name: playerName.trim(), score: 0, isHost: true, joinedAt: Date.now(), categoryScores: {} } }
     });
     localStorage.setItem('playerName', playerName.trim());
-    setRoomCode(code);
-    setIsHost(true);
-    setScreen('lobby');
+    setRoomCode(code); setIsHost(true); setScreen('lobby');
   };
 
   const joinGame = async () => {
@@ -478,74 +499,66 @@ export default function App() {
     if (!joinCode.trim() || joinCode.length !== 4) return alert('Enter 4-letter room code');
     soundManager.playClick();
     const code = joinCode.toUpperCase();
-    const checkRoom = await new Promise(resolve => {
-      onValue(ref(db, `rooms/${code}`), (snap) => resolve(snap.val()), { onlyOnce: true });
-    });
+    const checkRoom = await new Promise(resolve => { onValue(ref(db, `rooms/${code}`), (snap) => resolve(snap.val()), { onlyOnce: true }); });
     if (!checkRoom) return alert('Room not found');
     if (checkRoom.password && checkRoom.password !== joinPassword) return alert('Incorrect password');
-    await set(ref(db, `rooms/${code}/players/${playerId}`), { name: playerName.trim(), score: 0, isHost: false, joinedAt: Date.now() });
+    await set(ref(db, `rooms/${code}/players/${playerId}`), { name: playerName.trim(), score: 0, isHost: false, joinedAt: Date.now(), categoryScores: {} });
     localStorage.setItem('playerName', playerName.trim());
-    setRoomCode(code);
-    setIsHost(false);
-    setScreen('lobby');
+    setRoomCode(code); setIsHost(false); setScreen('lobby');
   };
 
   const leaveGame = async () => {
-    if (roomCode && playerId) {
-      if (isHost) await remove(ref(db, `rooms/${roomCode}`));
-      else await remove(ref(db, `rooms/${roomCode}/players/${playerId}`));
-    }
-    setRoomCode(''); setGameState(null); setPlayers({}); setIsHost(false); setScreen('home');
+    if (roomCode && playerId) { if (isHost) await remove(ref(db, `rooms/${roomCode}`)); else await remove(ref(db, `rooms/${roomCode}/players/${playerId}`)); }
+    setRoomCode(''); setGameState(null); setPlayers({}); setIsHost(false); setScreen('home'); setSelectedCategories([]); setShowTournamentSetup(false);
   };
 
   const startRound = async (category) => {
     soundManager.playClick();
     const meta = categoryMeta[category];
-    let qs;
-    if (meta.type === 'anagram') {
-      qs = [...allQuestions.anagram].sort(() => Math.random() - 0.5).slice(0, 5);
-    } else if (meta.type === 'riddle') {
-      qs = [...allQuestions.riddles].sort(() => Math.random() - 0.5).slice(0, 5);
-    } else {
-      qs = [...allQuestions[category]].sort(() => Math.random() - 0.5).slice(0, 5);
-    }
+    let qs = meta.type === 'anagram' ? [...allQuestions.anagram] : meta.type === 'riddle' ? [...allQuestions.riddles] : [...allQuestions[category]];
+    qs = qs.sort(() => Math.random() - 0.5).slice(0, questionsPerCategory);
     await update(ref(db, `rooms/${roomCode}/game`), {
-      status: 'playing', category, roundType: meta.type || 'standard',
-      questions: qs, questionIndex: 0, currentQuestion: qs[0],
-      phase: 'buzzer', buzzedPlayer: null, timerEnd: Date.now() + 30000, answers: {}
+      status: 'playing', category, roundType: meta.type || 'standard', questions: qs, questionIndex: 0, currentQuestion: qs[0],
+      phase: 'buzzer', buzzedPlayer: null, timerEnd: Date.now() + 30000, answers: {}, tournament: null
     });
   };
 
+  const startTournament = async () => {
+    if (selectedCategories.length === 0) return alert('Select at least one category');
+    soundManager.playClick();
+    const tournamentData = selectedCategories.map(cat => {
+      const meta = categoryMeta[cat];
+      let qs = meta.type === 'anagram' ? [...allQuestions.anagram] : meta.type === 'riddle' ? [...allQuestions.riddles] : [...allQuestions[cat]];
+      return { category: cat, questions: qs.sort(() => Math.random() - 0.5).slice(0, questionsPerCategory) };
+    });
+    const firstCat = tournamentData[0];
+    const meta = categoryMeta[firstCat.category];
+    await update(ref(db, `rooms/${roomCode}/game`), {
+      status: 'playing', category: firstCat.category, roundType: meta.type || 'standard', questions: firstCat.questions, questionIndex: 0, currentQuestion: firstCat.questions[0],
+      phase: 'buzzer', buzzedPlayer: null, timerEnd: Date.now() + 30000, answers: {},
+      tournament: { categories: selectedCategories, categoryData: tournamentData, currentCategoryIndex: 0, totalCategories: selectedCategories.length, questionsPerCategory }
+    });
+    setShowTournamentSetup(false);
+  };
+
+  const toggleCategory = (cat) => setSelectedCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+
   const buzzIn = async () => {
     if (gameState?.phase !== 'buzzer' || gameState?.buzzedPlayer || localTimer === 0) return;
-    await update(ref(db, `rooms/${roomCode}/game`), {
-      buzzedPlayer: playerId, phase: 'answering', timerEnd: Date.now() + 15000
-    });
+    await update(ref(db, `rooms/${roomCode}/game`), { buzzedPlayer: playerId, phase: 'answering', timerEnd: Date.now() + 15000 });
   };
 
   const submitAnswer = async (answer) => {
     if (hasAnswered || localTimer === 0) return;
-    soundManager.playClick();
-    setSelectedAnswer(answer);
-    setHasAnswered(true);
-    
+    soundManager.playClick(); setSelectedAnswer(answer); setHasAnswered(true);
     const q = gameState.currentQuestion;
-    const roundType = gameState.roundType;
-    let correct = false;
-    
-    if (roundType === 'anagram') {
-      correct = answer.toUpperCase().replace(/\s/g, '') === q.answer.toUpperCase().replace(/\s/g, '');
-    } else {
-      correct = answer === q.answer;
-    }
-    
+    const correct = gameState.roundType === 'anagram' ? answer.toUpperCase().replace(/\s/g, '') === q.answer.toUpperCase().replace(/\s/g, '') : answer === q.answer;
     const points = correct ? 100 + Math.max(0, localTimer * 3) : 0;
     if (correct) soundManager.playCorrect(); else soundManager.playWrong();
-    
     await update(ref(db, `rooms/${roomCode}/game/answers/${playerId}`), { answer, correct, points, time: Date.now() });
     if (correct) {
-      const currentScore = players[playerId]?.score || 0;
-      await update(ref(db, `rooms/${roomCode}/players/${playerId}`), { score: currentScore + points });
+      const cat = gameState.category;
+      await update(ref(db, `rooms/${roomCode}/players/${playerId}`), { score: (players[playerId]?.score || 0) + points, [`categoryScores/${cat}`]: (players[playerId]?.categoryScores?.[cat] || 0) + points });
     }
     setTimeout(() => update(ref(db, `rooms/${roomCode}/game`), { phase: 'reveal' }), 500);
   };
@@ -553,194 +566,108 @@ export default function App() {
   const nextQuestion = async () => {
     soundManager.playClick();
     const nextIdx = gameState.questionIndex + 1;
+    const t = gameState.tournament;
     if (nextIdx >= gameState.questions.length) {
-      soundManager.playVictory();
-      await update(ref(db, `rooms/${roomCode}/game`), { status: 'roundEnd', phase: null });
+      if (t && t.currentCategoryIndex < t.totalCategories - 1) {
+        const nextCatIdx = t.currentCategoryIndex + 1;
+        const nextCat = t.categoryData[nextCatIdx];
+        const meta = categoryMeta[nextCat.category];
+        await update(ref(db, `rooms/${roomCode}/game`), { category: nextCat.category, roundType: meta.type || 'standard', questions: nextCat.questions, questionIndex: 0, currentQuestion: nextCat.questions[0], phase: 'buzzer', buzzedPlayer: null, timerEnd: Date.now() + 30000, answers: {}, 'tournament/currentCategoryIndex': nextCatIdx });
+      } else { soundManager.playVictory(); await update(ref(db, `rooms/${roomCode}/game`), { status: t ? 'tournamentEnd' : 'roundEnd', phase: null }); }
     } else {
-      await update(ref(db, `rooms/${roomCode}/game`), {
-        questionIndex: nextIdx, currentQuestion: gameState.questions[nextIdx],
-        phase: 'buzzer', buzzedPlayer: null, timerEnd: Date.now() + 30000, answers: {}
-      });
+      await update(ref(db, `rooms/${roomCode}/game`), { questionIndex: nextIdx, currentQuestion: gameState.questions[nextIdx], phase: 'buzzer', buzzedPlayer: null, timerEnd: Date.now() + 30000, answers: {} });
     }
   };
 
   const backToLobby = async () => {
     soundManager.playClick();
-    await update(ref(db, `rooms/${roomCode}/game`), { status: 'lobby', category: null, questions: null, currentQuestion: null, phase: null });
+    const resetPlayers = {}; Object.keys(players).forEach(id => { resetPlayers[`players/${id}/score`] = 0; resetPlayers[`players/${id}/categoryScores`] = {}; });
+    await update(ref(db, `rooms/${roomCode}`), resetPlayers);
+    await update(ref(db, `rooms/${roomCode}/game`), { status: 'lobby', category: null, questions: null, currentQuestion: null, phase: null, tournament: null });
+    setSelectedCategories([]);
   };
 
   const copyCode = () => { navigator.clipboard.writeText(roomCode); setCopied(true); soundManager.playClick(); setTimeout(() => setCopied(false), 2000); };
   const toggleSound = () => setSoundEnabled(soundManager.toggle());
   const sortedPlayers = Object.entries(players).map(([id, p]) => ({ id, ...p })).sort((a, b) => (b.score || 0) - (a.score || 0));
 
-  // Verify family access code
   const verifyAccess = () => {
-    if (accessCode.toUpperCase().trim() === FAMILY_ACCESS_CODE) {
-      localStorage.setItem('familyAccess', FAMILY_ACCESS_CODE);
-      setHasAccess(true);
-      setAccessError('');
-      soundManager.init();
-      soundManager.playCorrect();
-    } else {
-      setAccessError('Incorrect access code. Ask your host for the family code!');
-      soundManager.init();
-      soundManager.playWrong();
-    }
+    if (accessCode.toUpperCase().trim() === FAMILY_ACCESS_CODE) { localStorage.setItem('familyAccess', FAMILY_ACCESS_CODE); setHasAccess(true); setAccessError(''); soundManager.init(); soundManager.playCorrect(); }
+    else { setAccessError('Incorrect code'); soundManager.init(); soundManager.playWrong(); }
   };
 
-  // GATE SCREEN
   const renderGate = () => (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-red-900 to-green-900 p-4 relative flex items-center justify-center">
       <Snowflakes />
       <div className="max-w-sm mx-auto relative z-10 text-center">
         <div className="text-6xl mb-4">🎄🔒</div>
         <h1 className="text-3xl font-bold text-white mb-2">Family Christmas Quiz</h1>
-        <p className="text-white/60 mb-6">This is a private family event.<br/>Enter your access code to continue.</p>
-        
+        <p className="text-white/60 mb-6">Enter your family access code</p>
         <div className="bg-white/10 backdrop-blur rounded-xl p-6">
-          <label className="text-white/70 text-xs uppercase tracking-wide mb-2 block">Family Access Code</label>
-          <input 
-            type="text" 
-            value={accessCode} 
-            onChange={(e) => setAccessCode(e.target.value.toUpperCase())} 
-            onKeyDown={(e) => e.key === 'Enter' && verifyAccess()}
-            placeholder="Enter code" 
-            className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/40 text-2xl text-center font-mono tracking-widest uppercase border border-white/20 mb-3" 
-            maxLength={20}
-            autoFocus
-          />
-          {accessError && (
-            <p className="text-red-400 text-sm mb-3">{accessError}</p>
-          )}
-          <button 
-            onClick={verifyAccess} 
-            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform"
-          >
-            Enter Quiz
-          </button>
+          <input type="text" value={accessCode} onChange={(e) => setAccessCode(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && verifyAccess()} placeholder="ACCESS CODE" className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/40 text-2xl text-center font-mono tracking-widest uppercase border border-white/20 mb-3" maxLength={20} autoFocus />
+          {accessError && <p className="text-red-400 text-sm mb-3">{accessError}</p>}
+          <button onClick={verifyAccess} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl">Enter Quiz</button>
         </div>
-        
-        <p className="text-white/30 text-xs mt-6">Don't have a code? Contact the quiz host.</p>
       </div>
     </div>
   );
 
-  // HOME
   const renderHome = () => (
     <div className="min-h-screen bg-gradient-to-b from-red-900 via-red-800 to-green-900 p-4 relative">
       <Snowflakes />
       <div className="max-w-md mx-auto relative z-10 pt-6">
-        <button onClick={toggleSound} className="absolute top-2 right-2 text-white/60 hover:text-white p-2">
-          {soundEnabled ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
-        </button>
+        <button onClick={toggleSound} className="absolute top-2 right-2 text-white/60 hover:text-white p-2">{soundEnabled ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}</button>
         <div className="text-center mb-6">
           <div className="text-5xl mb-2">🎄</div>
           <h1 className="text-3xl font-bold text-white mb-1">Christmas Quiz</h1>
-          <p className="text-green-200 text-sm">Multi-Device Edition</p>
-          <div className={`flex items-center justify-center gap-2 mt-2 ${connected ? 'text-green-400' : 'text-red-400'}`}>
-            {connected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
-            <span className="text-xs">{connected ? 'Connected' : 'Connecting...'}</span>
-          </div>
+          <p className="text-green-200 text-sm">Tournament Edition</p>
+          <div className={`flex items-center justify-center gap-2 mt-2 ${connected ? 'text-green-400' : 'text-red-400'}`}>{connected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}<span className="text-xs">{connected ? 'Connected' : 'Connecting...'}</span></div>
         </div>
-        
-        {/* Your Name */}
         <div className="bg-white/10 backdrop-blur rounded-xl p-3 mb-4">
-          <label className="text-white/70 text-xs uppercase tracking-wide mb-1 block">Your Name</label>
+          <label className="text-white/70 text-xs uppercase mb-1 block">Your Name</label>
           <input type="text" value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Enter your name" className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/50 text-lg text-center font-medium" maxLength={15} />
         </div>
-
-        {/* HOST A GAME */}
         <div className="bg-green-800/50 backdrop-blur rounded-xl p-4 mb-3 border border-green-600/30">
-          <div className="flex items-center gap-2 mb-3">
-            <Crown className="w-5 h-5 text-yellow-400" />
-            <h2 className="text-white font-bold">HOST A GAME</h2>
-          </div>
-          
+          <div className="flex items-center gap-2 mb-3"><Crown className="w-5 h-5 text-yellow-400" /><h2 className="text-white font-bold">HOST A GAME</h2></div>
           <div className="bg-white/10 rounded-lg p-3 mb-3">
             <div className="flex items-center gap-2 mb-2">
               <input type="checkbox" id="usePass" checked={usePassword} onChange={(e) => setUsePassword(e.target.checked)} className="w-4 h-4 accent-green-500" />
-              <label htmlFor="usePass" className="text-white text-sm flex items-center gap-1">
-                <Lock className="w-4 h-4" /> Require password to join
-              </label>
+              <label htmlFor="usePass" className="text-white text-sm flex items-center gap-1"><Lock className="w-4 h-4" /> Require password</label>
             </div>
-            {usePassword && (
-              <input 
-                type="text" 
-                value={roomPassword} 
-                onChange={(e) => setRoomPassword(e.target.value)} 
-                placeholder="Create a password for your room" 
-                className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/50 text-sm mt-2 border border-white/20" 
-                maxLength={20} 
-              />
-            )}
-            {usePassword && roomPassword && (
-              <p className="text-green-300 text-xs mt-1">✓ Players will need this password + room code</p>
-            )}
+            {usePassword && <input type="text" value={roomPassword} onChange={(e) => setRoomPassword(e.target.value)} placeholder="Create password" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/50 text-sm mt-2 border border-white/20" maxLength={20} />}
           </div>
-          
-          <button onClick={createGame} disabled={!connected || (usePassword && roomPassword.length < 4)} className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
-            <Crown className="w-5 h-5" />
-            Create Game Room
-          </button>
+          <button onClick={createGame} disabled={!connected || (usePassword && roomPassword.length < 4)} className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 active:scale-95"><Crown className="w-5 h-5" />Create Game</button>
         </div>
-
-        {/* DIVIDER */}
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/20"></div></div>
-          <div className="relative flex justify-center"><span className="bg-red-800 px-4 text-white/60 text-sm">or</span></div>
-        </div>
-
-        {/* JOIN A GAME */}
+        <div className="relative my-4"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/20"></div></div><div className="relative flex justify-center"><span className="bg-red-800 px-4 text-white/60 text-sm">or</span></div></div>
         <div className="bg-blue-800/50 backdrop-blur rounded-xl p-4 border border-blue-600/30">
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="w-5 h-5 text-blue-300" />
-            <h2 className="text-white font-bold">JOIN A GAME</h2>
-          </div>
-          
+          <div className="flex items-center gap-2 mb-3"><Users className="w-5 h-5 text-blue-300" /><h2 className="text-white font-bold">JOIN A GAME</h2></div>
           <div className="space-y-2">
-            <div>
-              <label className="text-white/70 text-xs uppercase tracking-wide mb-1 block">Room Code</label>
-              <input type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))} placeholder="XXXX" className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/40 text-xl text-center font-mono tracking-widest uppercase border border-white/20" maxLength={4} />
-            </div>
-            <div>
-              <label className="text-white/70 text-xs uppercase tracking-wide mb-1 block">Room Password</label>
-              <input type="text" value={joinPassword} onChange={(e) => setJoinPassword(e.target.value)} placeholder="Enter if host set one" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/40 text-sm border border-white/20" />
-            </div>
+            <input type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))} placeholder="ROOM CODE" className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/40 text-xl text-center font-mono tracking-widest uppercase border border-white/20" maxLength={4} />
+            <input type="text" value={joinPassword} onChange={(e) => setJoinPassword(e.target.value)} placeholder="Password (if required)" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/40 text-sm border border-white/20" />
           </div>
-          
-          <button onClick={joinGame} disabled={!connected || joinCode.length !== 4} className="w-full mt-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">
-            Join Game
-          </button>
+          <button onClick={joinGame} disabled={!connected || joinCode.length !== 4} className="w-full mt-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white font-bold py-3 rounded-xl">Join Game</button>
         </div>
-
         <p className="text-center text-white/40 text-xs mt-4">{Object.values(allQuestions).reduce((s, c) => s + c.length, 0)} questions • {Object.keys(categoryMeta).length} categories</p>
       </div>
     </div>
   );
 
-  // LOBBY
   const renderLobby = () => (
     <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-800 p-4">
       <Snowflakes />
       <div className="max-w-md mx-auto relative z-10">
         <div className="flex justify-between items-center mb-4">
           <button onClick={leaveGame} className="text-white/70 flex items-center gap-1 text-sm"><LogOut className="w-4 h-4" />Leave</button>
-          <div className="flex items-center gap-2">
-            <button onClick={toggleSound} className="text-white/60 hover:text-white">{soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}</button>
-            {connected ? <Wifi className="w-4 h-4 text-green-400" /> : <WifiOff className="w-4 h-4 text-red-400" />}
-          </div>
+          <div className="flex items-center gap-2"><button onClick={toggleSound} className="text-white/60">{soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}</button>{connected ? <Wifi className="w-4 h-4 text-green-400" /> : <WifiOff className="w-4 h-4 text-red-400" />}</div>
         </div>
         <div className="text-center mb-4">
           <p className="text-green-200 text-sm">Room Code</p>
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-4xl font-mono font-bold text-white tracking-widest">{roomCode}</span>
-            <button onClick={copyCode} className="text-white/70 hover:text-white"><Copy className="w-5 h-5" /></button>
-          </div>
+          <div className="flex items-center justify-center gap-2"><span className="text-4xl font-mono font-bold text-white tracking-widest">{roomCode}</span><button onClick={copyCode} className="text-white/70 hover:text-white"><Copy className="w-5 h-5" /></button></div>
           {copied && <p className="text-green-400 text-xs">Copied!</p>}
         </div>
         <div className="bg-white/10 rounded-xl p-3 mb-4">
           <h3 className="text-white font-bold mb-2 flex items-center gap-2 text-sm"><Users className="w-4 h-4" /> Players ({Object.keys(players).length})</h3>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
+          <div className="space-y-1 max-h-20 overflow-y-auto">
             {sortedPlayers.map((p) => (
               <div key={p.id} className="flex items-center justify-between bg-white/10 rounded px-2 py-1 text-sm">
                 <span className="text-white flex items-center gap-1">{p.isHost && <Crown className="w-3 h-3 text-yellow-400" />}{p.name}{p.id === playerId && <span className="text-white/40 text-xs">(you)</span>}</span>
@@ -750,193 +677,155 @@ export default function App() {
           </div>
         </div>
         {isHost ? (
-          <div>
-            <p className="text-white text-center mb-2 text-sm font-medium">Choose category:</p>
-            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-              {Object.entries(categoryMeta).map(([key, meta]) => (
-                <button key={key} onClick={() => startRound(key)} className={`bg-gradient-to-r ${meta.color} text-white font-bold py-2 px-2 rounded-lg flex items-center gap-1 active:scale-95 transition-transform text-xs`}>
-                  <span className="text-lg">{meta.icon}</span><span className="truncate">{meta.name}</span>
-                </button>
-              ))}
+          showTournamentSetup ? (
+            <div className="bg-white/10 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3"><h3 className="text-white font-bold flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-400" />Tournament</h3><button onClick={() => setShowTournamentSetup(false)} className="text-white/60 text-sm">Cancel</button></div>
+              <div className="mb-3">
+                <label className="text-white/70 text-xs uppercase mb-1 block">Questions per category</label>
+                <div className="flex gap-2">{[5, 10, 15].map(n => (<button key={n} onClick={() => setQuestionsPerCategory(n)} className={`flex-1 py-2 rounded-lg font-bold ${questionsPerCategory === n ? 'bg-yellow-500 text-black' : 'bg-white/20 text-white'}`}>{n}</button>))}</div>
+              </div>
+              <div className="mb-3">
+                <label className="text-white/70 text-xs uppercase mb-1 block">Select categories ({selectedCategories.length})</label>
+                <div className="grid grid-cols-3 gap-1 max-h-40 overflow-y-auto">
+                  {Object.entries(categoryMeta).map(([key, meta]) => (<button key={key} onClick={() => toggleCategory(key)} className={`py-1 px-2 rounded text-xs font-medium flex items-center gap-1 ${selectedCategories.includes(key) ? 'bg-green-500 text-white' : 'bg-white/20 text-white/70'}`}><span>{meta.icon}</span><span className="truncate">{meta.name.split(' ')[0]}</span></button>))}
+                </div>
+              </div>
+              <button onClick={startTournament} disabled={selectedCategories.length === 0} className="w-full bg-yellow-500 hover:bg-yellow-400 disabled:bg-gray-600 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2"><Play className="w-5 h-5" />Start ({selectedCategories.length * questionsPerCategory} Qs)</button>
             </div>
-          </div>
-        ) : (
-          <div className="text-center"><div className="text-5xl mb-2">⏳</div><p className="text-white">Waiting for host...</p></div>
-        )}
+          ) : (
+            <div>
+              <button onClick={() => setShowTournamentSetup(true)} className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2 mb-3"><Trophy className="w-4 h-4" />Tournament Mode</button>
+              <p className="text-white text-center mb-2 text-sm">Or single category:</p>
+              <div className="flex gap-2 mb-2 items-center justify-center"><span className="text-white/70 text-xs">Qs:</span>{[5, 10, 15].map(n => (<button key={n} onClick={() => setQuestionsPerCategory(n)} className={`px-2 py-1 rounded text-xs font-bold ${questionsPerCategory === n ? 'bg-green-500 text-white' : 'bg-white/20 text-white'}`}>{n}</button>))}</div>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {Object.entries(categoryMeta).map(([key, meta]) => (<button key={key} onClick={() => startRound(key)} className={`bg-gradient-to-r ${meta.color} text-white font-bold py-2 px-2 rounded-lg flex items-center gap-1 active:scale-95 text-xs`}><span className="text-lg">{meta.icon}</span><span className="truncate">{meta.name}</span></button>))}
+              </div>
+            </div>
+          )
+        ) : (<div className="text-center"><div className="text-5xl mb-2">⏳</div><p className="text-white">Waiting for host...</p></div>)}
       </div>
     </div>
   );
 
-  // PLAYING
   const renderPlaying = () => {
     const meta = categoryMeta[gameState?.category] || {};
     const q = gameState?.currentQuestion;
     const phase = gameState?.phase;
-    const buzzedPlayer = gameState?.buzzedPlayer;
-    const isBuzzedPlayer = buzzedPlayer === playerId;
-    const answers = gameState?.answers || {};
+    const buzzed = gameState?.buzzedPlayer;
+    const isBuzzed = buzzed === playerId;
     const timeUp = localTimer === 0;
     const roundType = gameState?.roundType || 'standard';
+    const t = gameState?.tournament;
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 p-4">
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-1"><span className="text-xl">{meta.icon}</span><span className="text-white text-sm">{meta.name}</span></div>
+            <div className="flex items-center gap-1"><span className="text-xl">{meta.icon}</span><span className="text-white text-sm truncate max-w-20">{meta.name}</span></div>
             <div className="flex items-center gap-2">
               <button onClick={toggleSound} className="text-white/60">{soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}</button>
-              <span className="text-white/60 text-sm">Q{(gameState?.questionIndex || 0) + 1}/5</span>
+              {t && <span className="text-yellow-400 text-xs">Cat {t.currentCategoryIndex + 1}/{t.totalCategories}</span>}
+              <span className="text-white/60 text-sm">Q{(gameState?.questionIndex || 0) + 1}/{gameState?.questions?.length}</span>
               <div className={`px-2 py-1 rounded-full text-white flex items-center gap-1 text-sm ${localTimer <= 5 ? 'bg-red-500 animate-pulse' : 'bg-white/20'}`}><Clock className="w-3 h-3" />{localTimer}s</div>
             </div>
           </div>
-
-          {/* Question Card */}
           <div className="bg-white rounded-xl p-4 mb-3 shadow-lg">
-            {roundType === 'anagram' ? (
-              <>
-                <div className="flex items-center gap-2 mb-2"><Shuffle className="w-5 h-5 text-blue-500" /><span className="text-sm text-gray-500">Unscramble the letters:</span></div>
-                <h3 className="text-2xl font-bold text-gray-800 text-center tracking-widest">{q?.scrambled}</h3>
-                {q?.hint && <p className="text-center text-gray-500 text-sm mt-2">{q.hint}</p>}
-              </>
-            ) : (
-              <>
-                {q?.emoji && <div className="text-4xl text-center mb-2">{q.emoji}</div>}
-                <h3 className="text-lg font-bold text-gray-800">{q?.question}</h3>
-              </>
-            )}
+            {roundType === 'anagram' ? (<><div className="flex items-center gap-2 mb-2"><Shuffle className="w-5 h-5 text-blue-500" /><span className="text-sm text-gray-500">Unscramble:</span></div><h3 className="text-2xl font-bold text-gray-800 text-center tracking-widest">{q?.scrambled}</h3>{q?.hint && <p className="text-center text-gray-500 text-sm mt-2">{q.hint}</p>}</>) : (<h3 className="text-lg font-bold text-gray-800">{q?.question}</h3>)}
           </div>
-
-          {/* Buzzer Phase */}
-          {phase === 'buzzer' && !buzzedPlayer && (
+          {phase === 'buzzer' && !buzzed && (<button onClick={buzzIn} disabled={timeUp} className={`w-full text-white font-bold py-6 rounded-2xl text-xl shadow-lg mb-3 ${timeUp ? 'bg-gray-500' : 'bg-red-500 hover:bg-red-400 active:scale-95 animate-pulse'}`}>{timeUp ? "⏱️ TIME'S UP!" : "🔔 BUZZ!"}</button>)}
+          {phase === 'answering' && buzzed && (
             <div className="mb-3">
-              <button onClick={buzzIn} disabled={timeUp} className={`w-full text-white font-bold py-6 rounded-2xl text-xl shadow-lg transition-all ${timeUp ? 'bg-gray-500' : 'bg-red-500 hover:bg-red-400 active:scale-95 animate-pulse'}`}>
-                {timeUp ? "⏱️ TIME'S UP!" : "🔔 BUZZ!"}
-              </button>
+              <p className="text-center text-yellow-400 mb-2 font-bold">🔔 {players[buzzed]?.name} buzzed!</p>
+              {isBuzzed ? (roundType === 'anagram' ? (<div><input type="text" value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value.toUpperCase())} placeholder="Type answer..." className="w-full px-4 py-3 rounded-xl text-lg text-center font-bold uppercase tracking-widest border-2 border-gray-300 focus:border-blue-500 outline-none mb-2" autoFocus disabled={hasAnswered || timeUp} /><button onClick={() => submitAnswer(typedAnswer)} disabled={hasAnswered || timeUp || !typedAnswer.trim()} className="w-full bg-green-500 hover:bg-green-400 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl">Submit</button></div>) : (<div className="space-y-2">{q?.options?.map((opt, i) => (<button key={i} onClick={() => submitAnswer(opt)} disabled={hasAnswered || timeUp} className={`w-full py-2 px-3 rounded-xl font-medium text-left ${hasAnswered || timeUp ? 'opacity-50' : 'hover:bg-white active:scale-98'} ${selectedAnswer === opt ? 'bg-blue-500 text-white' : 'bg-white/90 text-gray-800'}`}>{opt}</button>))}</div>)) : (<div className="text-center text-white"><div className="text-3xl mb-1">👀</div><p>{timeUp ? "Time ran out!" : "Waiting..."}</p></div>)}
             </div>
           )}
-
-          {/* Answering Phase */}
-          {phase === 'answering' && buzzedPlayer && (
-            <div className="mb-3">
-              <p className="text-center text-yellow-400 mb-2 font-bold">🔔 {players[buzzedPlayer]?.name} buzzed!</p>
-              {isBuzzedPlayer ? (
-                roundType === 'anagram' ? (
-                  <div>
-                    <input type="text" value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value.toUpperCase())} placeholder="Type your answer..." className="w-full px-4 py-3 rounded-xl text-lg text-center font-bold uppercase tracking-widest border-2 border-gray-300 focus:border-blue-500 outline-none mb-2" autoFocus disabled={hasAnswered || timeUp} />
-                    <button onClick={() => submitAnswer(typedAnswer)} disabled={hasAnswered || timeUp || !typedAnswer.trim()} className="w-full bg-green-500 hover:bg-green-400 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl">Submit Answer</button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {q?.options?.map((opt, i) => (
-                      <button key={i} onClick={() => submitAnswer(opt)} disabled={hasAnswered || timeUp}
-                        className={`w-full py-2 px-3 rounded-xl font-medium text-left transition-all ${hasAnswered || timeUp ? 'opacity-50' : 'hover:bg-white active:scale-98'} ${selectedAnswer === opt ? 'bg-blue-500 text-white' : 'bg-white/90 text-gray-800'}`}>
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )
-              ) : (
-                <div className="text-center text-white"><div className="text-3xl mb-1">👀</div><p>{timeUp ? "Time ran out!" : "Waiting..."}</p></div>
-              )}
-            </div>
-          )}
-
-          {/* Reveal Phase */}
-          {phase === 'reveal' && (
-            <div className="mb-3">
-              {roundType === 'anagram' ? (
-                <div className="bg-green-500 text-white rounded-xl p-4 text-center mb-3">
-                  <p className="text-sm opacity-80">Answer:</p>
-                  <p className="text-2xl font-bold">{q?.answer}</p>
-                </div>
-              ) : (
-                <div className="space-y-1 mb-3">
-                  {q?.options?.map((opt, i) => (
-                    <div key={i} className={`w-full py-2 px-3 rounded-xl font-medium flex items-center gap-2 text-sm ${opt === q.answer ? 'bg-green-500 text-white' : answers[playerId]?.answer === opt && !answers[playerId]?.correct ? 'bg-red-500 text-white' : 'bg-white/20 text-white/60'}`}>
-                      {opt === q.answer && <Check className="w-4 h-4" />}
-                      {answers[playerId]?.answer === opt && !answers[playerId]?.correct && <X className="w-4 h-4" />}
-                      {opt}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {buzzedPlayer ? (
-                <p className={`text-center font-bold mb-3 ${answers[buzzedPlayer]?.correct ? 'text-green-400' : 'text-red-400'}`}>
-                  {players[buzzedPlayer]?.name}: {answers[buzzedPlayer]?.correct ? `✓ +${answers[buzzedPlayer]?.points}` : '✗ Wrong!'}
-                </p>
-              ) : (
-                <p className="text-center text-yellow-400 font-bold mb-3">⏱️ No one buzzed!</p>
-              )}
-              {isHost && (
-                <button onClick={nextQuestion} className="w-full bg-green-500 hover:bg-green-400 text-white font-bold py-2 rounded-xl flex items-center justify-center gap-2 active:scale-95">
-                  {(gameState?.questionIndex || 0) < 4 ? 'Next Question' : 'See Results'} <ChevronRight className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Scores */}
-          <div className="bg-white/10 rounded-xl p-2">
-            <div className="grid grid-cols-3 gap-1">
-              {sortedPlayers.slice(0, 6).map((p, i) => (
-                <div key={p.id} className={`text-center py-1 px-1 rounded ${p.id === playerId ? 'bg-white/20' : ''}`}>
-                  <div className="text-white text-xs truncate">{i === 0 && '👑'}{p.name}</div>
-                  <div className="text-green-300 font-bold text-sm">{p.score}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {phase === 'reveal' && (<div className="mb-3"><div className="bg-green-500 text-white rounded-xl p-4 text-center mb-3"><p className="text-sm opacity-80">Answer:</p><p className="text-2xl font-bold">{q?.answer}</p></div>{isHost && <button onClick={nextQuestion} className="w-full bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"><ChevronRight className="w-5 h-5" />Next</button>}</div>)}
+          <div className="bg-white/10 rounded-xl p-2"><div className="grid grid-cols-3 gap-1">{sortedPlayers.slice(0, 6).map((p, i) => (<div key={p.id} className="bg-white/10 rounded px-2 py-1 text-center"><p className="text-white text-xs truncate">{i === 0 && '👑'}{p.name}</p><p className="text-green-400 font-bold text-sm">{p.score}</p></div>))}</div></div>
         </div>
       </div>
     );
   };
 
-  // ROUND END
-  const renderRoundEnd = () => {
-    const meta = categoryMeta[gameState?.category] || { icon: '🎯', name: 'Round' };
+  const renderRoundEnd = () => (
+    <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-800 p-4 flex items-center justify-center">
+      <div className="max-w-md w-full text-center">
+        <div className="text-6xl mb-4">🎉</div>
+        <h2 className="text-3xl font-bold text-white mb-4">Round Complete!</h2>
+        <div className="bg-white/10 rounded-xl p-4 mb-4">
+          <h3 className="text-white font-bold mb-2">Scores</h3>
+          {sortedPlayers.map((p, i) => (<div key={p.id} className={`flex items-center justify-between py-2 px-3 rounded-lg mb-1 ${i === 0 ? 'bg-yellow-500/30' : 'bg-white/10'}`}><span className="text-white flex items-center gap-2">{i === 0 && '🏆'}{i === 1 && '🥈'}{i === 2 && '🥉'}{p.name}</span><span className="text-green-300 font-bold">{p.score}</span></div>))}
+        </div>
+        {isHost && <button onClick={backToLobby} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl">Back to Lobby</button>}
+      </div>
+    </div>
+  );
+
+  const renderTournamentEnd = () => {
+    const t = gameState?.tournament;
+    const categories = t?.categories || [];
+    const categoryWinners = categories.map(cat => {
+      const meta = categoryMeta[cat];
+      let bestPlayer = null, bestScore = 0;
+      Object.entries(players).forEach(([id, p]) => {
+        const catScore = p.categoryScores?.[cat] || 0;
+        if (catScore > bestScore) { bestScore = catScore; bestPlayer = { id, name: p.name, score: catScore }; }
+      });
+      return { category: cat, meta, winner: bestPlayer };
+    });
+
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-700 to-green-900 p-4">
+      <div className="min-h-screen bg-gradient-to-b from-purple-900 via-red-900 to-green-900 p-4">
         <Snowflakes />
-        <div className="max-w-md mx-auto relative z-10 pt-6">
+        <div className="max-w-md mx-auto relative z-10">
           <div className="text-center mb-4">
-            <div className="text-5xl mb-2">🎉</div>
-            <h2 className="text-2xl font-bold text-white">Round Complete!</h2>
-            <p className="text-green-200">{meta.icon} {meta.name}</p>
+            <div className="text-6xl mb-2">🏆</div>
+            <h2 className="text-3xl font-bold text-white mb-1">Tournament Complete!</h2>
+            <p className="text-white/60">{categories.length} categories • {categories.length * (t?.questionsPerCategory || 5)} questions</p>
           </div>
-          <div className="space-y-2 mb-4">
+          <div className="bg-yellow-500/20 border-2 border-yellow-500 rounded-xl p-4 mb-4">
+            <h3 className="text-yellow-400 font-bold text-center mb-2">🎄 Overall Champion 🎄</h3>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-white">{sortedPlayers[0]?.name}</p>
+              <p className="text-yellow-400 text-2xl font-bold">{sortedPlayers[0]?.score} points</p>
+            </div>
+          </div>
+          <div className="bg-white/10 rounded-xl p-4 mb-4">
+            <h3 className="text-white font-bold mb-2 flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-400" />Final Standings</h3>
             {sortedPlayers.map((p, i) => (
-              <div key={p.id} className={`rounded-xl p-3 flex items-center gap-3 ${i === 0 ? 'bg-yellow-300 text-yellow-900' : i === 1 ? 'bg-gray-200 text-gray-800' : i === 2 ? 'bg-orange-300 text-orange-900' : 'bg-white/80 text-gray-800'}`}>
-                <div className="text-xl font-bold w-8">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</div>
-                <div className="flex-1 font-bold">{p.name}{p.id === playerId && <span className="text-xs opacity-60 ml-1">(you)</span>}</div>
-                <div className="text-xl font-bold">{p.score}</div>
+              <div key={p.id} className={`flex items-center justify-between py-2 px-3 rounded-lg mb-1 ${i === 0 ? 'bg-yellow-500/30' : i === 1 ? 'bg-gray-400/20' : i === 2 ? 'bg-orange-700/20' : 'bg-white/5'}`}>
+                <span className="text-white flex items-center gap-2">{i === 0 && '🥇'}{i === 1 && '🥈'}{i === 2 && '🥉'}{i > 2 && <span className="w-5 text-center text-white/50">{i + 1}</span>}{p.name}</span>
+                <span className="text-green-300 font-bold">{p.score}</span>
               </div>
             ))}
           </div>
-          {isHost ? (
-            <div className="space-y-2">
-              <button onClick={backToLobby} className="w-full bg-white text-green-800 font-bold py-3 rounded-xl active:scale-95">Play Another Round</button>
-              <button onClick={leaveGame} className="w-full bg-white/20 text-white font-bold py-3 rounded-xl active:scale-95">End Game</button>
+          <div className="bg-white/10 rounded-xl p-4 mb-4">
+            <h3 className="text-white font-bold mb-2 flex items-center gap-2"><Star className="w-5 h-5 text-yellow-400" />Category Champions</h3>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {categoryWinners.map(({ category, meta, winner }) => (
+                <div key={category} className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+                  <span className="text-white flex items-center gap-1 text-sm"><span>{meta.icon}</span><span className="truncate max-w-20">{meta.name}</span></span>
+                  {winner ? <span className="text-green-400 text-sm font-medium">{winner.name} ({winner.score})</span> : <span className="text-white/40 text-sm">-</span>}
+                </div>
+              ))}
             </div>
-          ) : (
-            <p className="text-center text-white">Waiting for host...</p>
-          )}
+          </div>
+          {isHost && <button onClick={backToLobby} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"><Play className="w-5 h-5" />Play Again</button>}
         </div>
       </div>
     );
   };
 
   const getScreen = () => {
-    // Show gate first if no access
     if (!hasAccess) return renderGate();
-    
     if (screen === 'home') return renderHome();
     if (screen === 'lobby') {
       if (gameState?.status === 'playing') return renderPlaying();
       if (gameState?.status === 'roundEnd') return renderRoundEnd();
+      if (gameState?.status === 'tournamentEnd') return renderTournamentEnd();
       return renderLobby();
     }
     return renderHome();
   };
 
-  return <div className="font-sans">{getScreen()}</div>;
+  return getScreen();
 }
