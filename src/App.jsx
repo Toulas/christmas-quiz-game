@@ -1,21 +1,121 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
-import { Users, ChevronRight, Check, X, Clock, Trophy, RotateCcw, Zap, Award, Crown, Wifi, WifiOff, Copy, LogOut, Play } from 'lucide-react';
+import { getDatabase, ref, set, onValue, off, update, remove } from 'firebase/database';
+import { Users, ChevronRight, Check, X, Clock, Trophy, Crown, Wifi, WifiOff, Copy, LogOut, Volume2, VolumeX } from 'lucide-react';
 
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAeJ_aa7TlPdTSpRpur3fCIoQKJtkP_1O4",
   authDomain: "christmas-quiz-d3d58.firebaseapp.com",
+  databaseURL: "https://christmas-quiz-d3d58-default-rtdb.firebaseio.com",
   projectId: "christmas-quiz-d3d58",
   storageBucket: "christmas-quiz-d3d58.firebasestorage.app",
   messagingSenderId: "536444120586",
   appId: "1:536444120586:web:c94e176cb1f9cec56b39f3"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = getDatabase(app);
+
+// =====================
+// SOUND EFFECTS SYSTEM
+// =====================
+class SoundManager {
+  constructor() {
+    this.audioContext = null;
+    this.enabled = true;
+  }
+
+  init() {
+    if (!this.audioContext) {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume();
+    }
+  }
+
+  playTone(frequency, duration, type = 'sine', volume = 0.3) {
+    if (!this.enabled || !this.audioContext) return;
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+    oscillator.frequency.value = frequency;
+    oscillator.type = type;
+    gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+    oscillator.start(this.audioContext.currentTime);
+    oscillator.stop(this.audioContext.currentTime + duration);
+  }
+
+  playBuzzer() {
+    if (!this.enabled) return;
+    this.init();
+    this.playTone(880, 0.1, 'square', 0.4);
+    setTimeout(() => this.playTone(1100, 0.1, 'square', 0.4), 100);
+    setTimeout(() => this.playTone(1320, 0.15, 'square', 0.4), 200);
+  }
+
+  playCorrect() {
+    if (!this.enabled) return;
+    this.init();
+    this.playTone(523, 0.15, 'sine', 0.3);
+    setTimeout(() => this.playTone(659, 0.15, 'sine', 0.3), 150);
+    setTimeout(() => this.playTone(784, 0.2, 'sine', 0.3), 300);
+    setTimeout(() => this.playTone(1047, 0.3, 'sine', 0.3), 450);
+  }
+
+  playWrong() {
+    if (!this.enabled) return;
+    this.init();
+    this.playTone(400, 0.15, 'sawtooth', 0.3);
+    setTimeout(() => this.playTone(300, 0.15, 'sawtooth', 0.3), 150);
+    setTimeout(() => this.playTone(200, 0.3, 'sawtooth', 0.3), 300);
+  }
+
+  playTick() {
+    if (!this.enabled) return;
+    this.init();
+    this.playTone(800, 0.05, 'sine', 0.2);
+  }
+
+  playTimeUp() {
+    if (!this.enabled) return;
+    this.init();
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        this.playTone(600, 0.1, 'square', 0.3);
+        setTimeout(() => this.playTone(400, 0.1, 'square', 0.3), 100);
+      }, i * 250);
+    }
+  }
+
+  playVictory() {
+    if (!this.enabled) return;
+    this.init();
+    const notes = [523, 523, 523, 659, 784, 659, 784];
+    const durations = [0.15, 0.15, 0.15, 0.15, 0.3, 0.15, 0.4];
+    let time = 0;
+    notes.forEach((note, i) => {
+      setTimeout(() => this.playTone(note, durations[i], 'sine', 0.3), time);
+      time += durations[i] * 800;
+    });
+  }
+
+  playClick() {
+    if (!this.enabled) return;
+    this.init();
+    this.playTone(600, 0.05, 'sine', 0.15);
+  }
+
+  toggle() {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+}
+
+const soundManager = new SoundManager();
 
 // Category metadata
 const categoryMeta = {
@@ -30,7 +130,7 @@ const categoryMeta = {
   food: { name: "Food & Drink", icon: "🍕", color: "from-orange-500 to-red-500" },
 };
 
-// Questions database
+// Questions
 const allQuestions = {
   trivia: [
     { id: 't1', question: "In which country did the tradition of putting up a Christmas tree originate?", options: ["England", "Germany", "USA", "France"], answer: "Germany" },
@@ -43,11 +143,6 @@ const allQuestions = {
     { id: 't8', question: "What is traditionally hidden inside a Christmas pudding?", options: ["A ring", "A coin", "A thimble", "All of these"], answer: "All of these" },
     { id: 't9', question: "In which country is it tradition to eat KFC for Christmas dinner?", options: ["USA", "UK", "Japan", "Australia"], answer: "Japan" },
     { id: 't10', question: "In Australia, Christmas falls during which season?", options: ["Spring", "Summer", "Fall", "Winter"], answer: "Summer" },
-    { id: 't11', question: "In Iceland, how many 'Yule Lads' visit children before Christmas?", options: ["7", "9", "13", "24"], answer: "13" },
-    { id: 't12', question: "What do they call Santa Claus in France?", options: ["Papa Noël", "Père Noël", "Saint Nicolas", "Le Père Froid"], answer: "Père Noël" },
-    { id: 't13', question: "How many points does a traditional snowflake have?", options: ["4", "5", "6", "8"], answer: "6" },
-    { id: 't14', question: "What is Boxing Day?", options: ["A fighting holiday", "The day after Christmas", "A packing holiday", "December 24th"], answer: "The day after Christmas" },
-    { id: 't15', question: "What is Advent?", options: ["Christmas Eve", "The 4 weeks before Christmas", "Christmas morning", "New Year's Eve"], answer: "The 4 weeks before Christmas" },
   ],
   movies: [
     { id: 'mov1', question: "In 'Home Alone', where are the McCallisters going on vacation?", options: ["London", "Paris", "Rome", "Miami"], answer: "Paris" },
@@ -60,23 +155,13 @@ const allQuestions = {
     { id: 'mov8', question: "In 'The Santa Clause', what happens when Scott puts on the suit?", options: ["He flies", "He gains weight and grows a beard", "He turns invisible", "He shrinks"], answer: "He gains weight and grows a beard" },
     { id: 'mov9', question: "What is the name of the angel in 'It's a Wonderful Life'?", options: ["Gabriel", "Michael", "Clarence", "George"], answer: "Clarence" },
     { id: 'mov10', question: "In 'Die Hard', what building does the action take place in?", options: ["Empire State Building", "Nakatomi Plaza", "Sears Tower", "Trump Tower"], answer: "Nakatomi Plaza" },
-    { id: 'mov11', question: "What does Buddy the Elf call the fake Santa?", options: ["An imposter", "A fake", "A liar", "He sits on a throne of lies"], answer: "He sits on a throne of lies" },
-    { id: 'mov12', question: "In 'The Nightmare Before Christmas', what is Jack's title?", options: ["Pumpkin King", "Halloween King", "Skeleton King", "Nightmare King"], answer: "Pumpkin King" },
-    { id: 'mov13', question: "What does Kevin use to burn Harry's hand in 'Home Alone'?", options: ["A lighter", "A heated doorknob", "Hot water", "A blowtorch"], answer: "A heated doorknob" },
-    { id: 'mov14', question: "What is the Grinch's mountain called?", options: ["Mount Crumpit", "Mount Grinch", "Mount Whoville", "Mount Christmas"], answer: "Mount Crumpit" },
-    { id: 'mov15', question: "What year was 'Home Alone' released?", options: ["1988", "1990", "1992", "1994"], answer: "1990" },
   ],
   nineties: [
     { id: '90s1', question: "Who sang 'All I Want for Christmas Is You' in 1994?", options: ["Whitney Houston", "Mariah Carey", "Celine Dion", "Madonna"], answer: "Mariah Carey" },
-    { id: '90s2', question: "What year did Mariah Carey release 'All I Want for Christmas Is You'?", options: ["1992", "1994", "1996", "1998"], answer: "1994" },
-    { id: '90s3', question: "Which boy band released 'Merry Christmas, Happy Holidays' in 1998?", options: ["Backstreet Boys", "*NSYNC", "98 Degrees", "New Kids on the Block"], answer: "*NSYNC" },
-    { id: '90s4', question: "What British band released 'Stay Another Day' in 1994?", options: ["Take That", "Oasis", "East 17", "Blur"], answer: "East 17" },
-    { id: '90s5', question: "Which 1990 movie's soundtrack made 'Somewhere in My Memory' famous?", options: ["Edward Scissorhands", "Home Alone", "Goodfellas", "Pretty Woman"], answer: "Home Alone" },
-    { id: '90s6', question: "Who sang 'Christmas Eve/Sarajevo 12/24' in 1996?", options: ["Mannheim Steamroller", "Trans-Siberian Orchestra", "Enya", "Yanni"], answer: "Trans-Siberian Orchestra" },
-    { id: '90s7', question: "What 90s R&B group released 'This Christmas' in 1993?", options: ["Boyz II Men", "TLC", "En Vogue", "SWV"], answer: "Boyz II Men" },
-    { id: '90s8', question: "Who released 'Where Are You Christmas?' from the Grinch movie?", options: ["Celine Dion", "Faith Hill", "Mariah Carey", "LeAnn Rimes"], answer: "Faith Hill" },
-    { id: '90s9', question: "What band performed 'Christmas in Hollis' featured in Die Hard?", options: ["Run-DMC", "Beastie Boys", "Public Enemy", "LL Cool J"], answer: "Run-DMC" },
-    { id: '90s10', question: "What Hanson holiday song was released in 1997?", options: ["MMMBop Christmas", "Snowed In", "At Christmas", "Merry Christmas Baby"], answer: "At Christmas" },
+    { id: '90s2', question: "Which boy band released 'Merry Christmas, Happy Holidays' in 1998?", options: ["Backstreet Boys", "*NSYNC", "98 Degrees", "New Kids on the Block"], answer: "*NSYNC" },
+    { id: '90s3', question: "What British band released 'Stay Another Day' in 1994?", options: ["Take That", "Oasis", "East 17", "Blur"], answer: "East 17" },
+    { id: '90s4', question: "Who sang 'Christmas Eve/Sarajevo 12/24' in 1996?", options: ["Mannheim Steamroller", "Trans-Siberian Orchestra", "Enya", "Yanni"], answer: "Trans-Siberian Orchestra" },
+    { id: '90s5', question: "What 90s R&B group released 'This Christmas' in 1993?", options: ["Boyz II Men", "TLC", "En Vogue", "SWV"], answer: "Boyz II Men" },
   ],
   music: [
     { id: 'm1', question: "Who originally sang 'White Christmas'?", options: ["Frank Sinatra", "Bing Crosby", "Elvis Presley", "Dean Martin"], answer: "Bing Crosby" },
@@ -84,21 +169,13 @@ const allQuestions = {
     { id: 'm3', question: "Who sang 'Last Christmas'?", options: ["Wham!", "Duran Duran", "Culture Club", "Spandau Ballet"], answer: "Wham!" },
     { id: 'm4', question: "Complete: 'Deck the halls with boughs of ___'", options: ["mistletoe", "holly", "ivy", "pine"], answer: "holly" },
     { id: 'm5', question: "Who released 'Rockin' Around the Christmas Tree' in 1958?", options: ["Brenda Lee", "Connie Francis", "Patsy Cline", "Peggy Lee"], answer: "Brenda Lee" },
-    { id: 'm6', question: "What Christmas song was originally written for Thanksgiving?", options: ["White Christmas", "Jingle Bells", "Winter Wonderland", "Silver Bells"], answer: "Jingle Bells" },
-    { id: 'm7', question: "Who sang 'Blue Christmas'?", options: ["Frank Sinatra", "Dean Martin", "Elvis Presley", "Johnny Cash"], answer: "Elvis Presley" },
-    { id: 'm8', question: "What song mentions 'five golden rings'?", options: ["Jingle Bells", "Deck the Halls", "The Twelve Days of Christmas", "We Wish You a Merry Christmas"], answer: "The Twelve Days of Christmas" },
-    { id: 'm9', question: "Who recorded 'Feliz Navidad'?", options: ["José Feliciano", "Julio Iglesias", "Luis Miguel", "Enrique Iglesias"], answer: "José Feliciano" },
-    { id: 'm10', question: "Complete: 'Grandma got run over by a ___'", options: ["sleigh", "reindeer", "snowplow", "car"], answer: "reindeer" },
   ],
   visual: [
     { id: 'v1', question: "What color are traditional Christmas stockings?", options: ["Blue", "Red", "Green", "White"], answer: "Red", emoji: "🧦" },
     { id: 'v2', question: "What shape is a traditional Christmas tree?", options: ["Round", "Square", "Triangle/Cone", "Oval"], answer: "Triangle/Cone", emoji: "🎄" },
     { id: 'v3', question: "What sits on top of most Christmas trees?", options: ["Snowflake", "Star or Angel", "Bell", "Candle"], answer: "Star or Angel", emoji: "⭐" },
     { id: 'v4', question: "What color is Rudolph's famous nose?", options: ["Orange", "Pink", "Red", "Yellow"], answer: "Red", emoji: "🔴" },
-    { id: 'v5', question: "What shape is a candy cane?", options: ["Straight line", "Circle", "J-shape/Hook", "Spiral"], answer: "J-shape/Hook", emoji: "🍬" },
-    { id: 'v6', question: "What color is the Grinch?", options: ["Red", "Blue", "Green", "Purple"], answer: "Green", emoji: "💚" },
-    { id: 'v7', question: "What does a snowman traditionally use for a nose?", options: ["Stick", "Button", "Carrot", "Coal"], answer: "Carrot", emoji: "⛄" },
-    { id: 'v8', question: "What color is Santa's belt?", options: ["Brown", "Red", "Black", "Gold"], answer: "Black", emoji: "🎅" },
+    { id: 'v5', question: "What color is the Grinch?", options: ["Red", "Blue", "Green", "Purple"], answer: "Green", emoji: "💚" },
   ],
   general: [
     { id: 'g1', question: "What is the largest planet in our solar system?", options: ["Saturn", "Jupiter", "Neptune", "Uranus"], answer: "Jupiter" },
@@ -106,37 +183,20 @@ const allQuestions = {
     { id: 'g3', question: "What is the capital of Australia?", options: ["Sydney", "Melbourne", "Canberra", "Perth"], answer: "Canberra" },
     { id: 'g4', question: "How many sides does a hexagon have?", options: ["5", "6", "7", "8"], answer: "6" },
     { id: 'g5', question: "What is the chemical symbol for gold?", options: ["Go", "Gd", "Au", "Ag"], answer: "Au" },
-    { id: 'g6', question: "Who painted the Mona Lisa?", options: ["Michelangelo", "Leonardo da Vinci", "Raphael", "Donatello"], answer: "Leonardo da Vinci" },
-    { id: 'g7', question: "What is the smallest country in the world?", options: ["Monaco", "Vatican City", "San Marino", "Liechtenstein"], answer: "Vatican City" },
-    { id: 'g8', question: "What year did the Titanic sink?", options: ["1910", "1911", "1912", "1913"], answer: "1912" },
-    { id: 'g9', question: "What is the hardest natural substance on Earth?", options: ["Gold", "Iron", "Diamond", "Platinum"], answer: "Diamond" },
-    { id: 'g10', question: "Which planet is known as the Red Planet?", options: ["Venus", "Mars", "Jupiter", "Mercury"], answer: "Mars" },
-    { id: 'g11', question: "What is the largest ocean on Earth?", options: ["Atlantic", "Indian", "Arctic", "Pacific"], answer: "Pacific" },
-    { id: 'g12', question: "Who wrote 'Romeo and Juliet'?", options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"], answer: "William Shakespeare" },
   ],
   science: [
     { id: 's1', question: "What is the chemical formula for water?", options: ["HO2", "H2O", "OH2", "H2O2"], answer: "H2O" },
     { id: 's2', question: "What is the powerhouse of the cell?", options: ["Nucleus", "Ribosome", "Mitochondria", "Golgi body"], answer: "Mitochondria" },
     { id: 's3', question: "What element does 'O' represent on the periodic table?", options: ["Gold", "Osmium", "Oxygen", "Oganesson"], answer: "Oxygen" },
-    { id: 's4', question: "How many teeth does an adult human typically have?", options: ["28", "30", "32", "34"], answer: "32" },
-    { id: 's5', question: "What is the nearest star to Earth?", options: ["Proxima Centauri", "Alpha Centauri", "The Sun", "Sirius"], answer: "The Sun" },
-    { id: 's6', question: "What gas makes up most of Earth's atmosphere?", options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"], answer: "Nitrogen" },
-    { id: 's7', question: "What force keeps us on the ground?", options: ["Magnetism", "Friction", "Gravity", "Inertia"], answer: "Gravity" },
-    { id: 's8', question: "What is the boiling point of water in Celsius?", options: ["90°C", "100°C", "110°C", "120°C"], answer: "100°C" },
-    { id: 's9', question: "How many chromosomes do humans have?", options: ["23", "46", "48", "64"], answer: "46" },
-    { id: 's10', question: "What planet has the most moons?", options: ["Jupiter", "Saturn", "Uranus", "Neptune"], answer: "Saturn" },
+    { id: 's4', question: "What is the nearest star to Earth?", options: ["Proxima Centauri", "Alpha Centauri", "The Sun", "Sirius"], answer: "The Sun" },
+    { id: 's5', question: "What force keeps us on the ground?", options: ["Magnetism", "Friction", "Gravity", "Inertia"], answer: "Gravity" },
   ],
   geography: [
     { id: 'geo1', question: "What is the capital of Canada?", options: ["Toronto", "Vancouver", "Ottawa", "Montreal"], answer: "Ottawa" },
     { id: 'geo2', question: "Which country has the largest population?", options: ["USA", "India", "China", "Indonesia"], answer: "India" },
     { id: 'geo3', question: "What is the tallest mountain in the world?", options: ["K2", "Kangchenjunga", "Mount Everest", "Lhotse"], answer: "Mount Everest" },
     { id: 'geo4', question: "Which river flows through London?", options: ["Seine", "Thames", "Danube", "Rhine"], answer: "Thames" },
-    { id: 'geo5', question: "What country is known as the Land of the Rising Sun?", options: ["China", "Korea", "Japan", "Thailand"], answer: "Japan" },
-    { id: 'geo6', question: "What is the largest desert in the world?", options: ["Sahara", "Arabian", "Gobi", "Antarctic"], answer: "Antarctic" },
-    { id: 'geo7', question: "Which US state is the largest by area?", options: ["Texas", "California", "Alaska", "Montana"], answer: "Alaska" },
-    { id: 'geo8', question: "What is the capital of Brazil?", options: ["Rio de Janeiro", "São Paulo", "Brasília", "Salvador"], answer: "Brasília" },
-    { id: 'geo9', question: "What sea lies between Europe and Africa?", options: ["Red Sea", "Black Sea", "Mediterranean Sea", "Caspian Sea"], answer: "Mediterranean Sea" },
-    { id: 'geo10', question: "What is the smallest US state by area?", options: ["Delaware", "Rhode Island", "Connecticut", "New Jersey"], answer: "Rhode Island" },
+    { id: 'geo5', question: "What is the largest desert in the world?", options: ["Sahara", "Arabian", "Gobi", "Antarctic"], answer: "Antarctic" },
   ],
   food: [
     { id: 'f1', question: "What country does sushi originate from?", options: ["China", "Korea", "Japan", "Thailand"], answer: "Japan" },
@@ -144,15 +204,9 @@ const allQuestions = {
     { id: 'f3', question: "What type of pasta is shaped like bow ties?", options: ["Penne", "Fusilli", "Farfalle", "Rigatoni"], answer: "Farfalle" },
     { id: 'f4', question: "What is the most consumed beverage in the world after water?", options: ["Coffee", "Tea", "Beer", "Soft drinks"], answer: "Tea" },
     { id: 'f5', question: "What country does feta cheese come from?", options: ["Italy", "France", "Greece", "Spain"], answer: "Greece" },
-    { id: 'f6', question: "What vegetable is used to make pickles?", options: ["Zucchini", "Cucumber", "Squash", "Eggplant"], answer: "Cucumber" },
-    { id: 'f7', question: "What nut is used to make marzipan?", options: ["Walnut", "Hazelnut", "Almond", "Cashew"], answer: "Almond" },
-    { id: 'f8', question: "What country is Parmesan cheese from?", options: ["France", "Switzerland", "Italy", "Spain"], answer: "Italy" },
-    { id: 'f9', question: "What is the main ingredient in hummus?", options: ["Lentils", "Chickpeas", "Black beans", "Kidney beans"], answer: "Chickpeas" },
-    { id: 'f10', question: "What country does paella originate from?", options: ["Mexico", "Italy", "Spain", "Portugal"], answer: "Spain" },
   ],
 };
 
-// Generate room code
 const generateRoomCode = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -160,7 +214,6 @@ const generateRoomCode = () => {
   return code;
 };
 
-// Snowflakes background
 const Snowflakes = () => (
   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
     {Array.from({ length: 15 }, (_, i) => (
@@ -170,343 +223,275 @@ const Snowflakes = () => (
   </div>
 );
 
-// Main App
 export default function App() {
-  const [connected, setConnected] = useState(true);
+  const [connected, setConnected] = useState(false);
   const [screen, setScreen] = useState('home');
   const [isHost, setIsHost] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [playerId, setPlayerId] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [roomData, setRoomData] = useState(null);
+  const [gameState, setGameState] = useState(null);
+  const [players, setPlayers] = useState({});
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [localTimer, setLocalTimer] = useState(30);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  
+  const lastTickRef = useRef(null);
+  const timerExpiredRef = useRef(false);
 
-  // Generate player ID on mount
   useEffect(() => {
-    let id = localStorage.getItem('xmas-playerId');
+    let id = localStorage.getItem('playerId');
     if (!id) {
       id = 'p_' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('xmas-playerId', id);
+      localStorage.setItem('playerId', id);
     }
     setPlayerId(id);
-    const savedName = localStorage.getItem('xmas-playerName');
+    const savedName = localStorage.getItem('playerName');
     if (savedName) setPlayerName(savedName);
+    
+    const initSound = () => {
+      soundManager.init();
+      document.removeEventListener('click', initSound);
+    };
+    document.addEventListener('click', initSound);
+    return () => document.removeEventListener('click', initSound);
   }, []);
 
-  // Listen to room changes
+  useEffect(() => {
+    const connRef = ref(db, '.info/connected');
+    onValue(connRef, (snap) => setConnected(snap.val() === true));
+    return () => off(connRef);
+  }, []);
+
   useEffect(() => {
     if (!roomCode) return;
-    
-    const roomRef = doc(db, 'rooms', roomCode);
-    const unsub = onSnapshot(roomRef, (snap) => {
-      if (snap.exists()) {
-        setRoomData(snap.data());
-        setConnected(true);
+    const roomRef = ref(db, `rooms/${roomCode}`);
+    onValue(roomRef, (snap) => {
+      const data = snap.val();
+      if (data) {
+        setGameState(data.game || null);
+        setPlayers(data.players || {});
       } else if (!isHost) {
         alert('Game ended by host');
         leaveGame();
       }
-    }, (err) => {
-      console.error('Firestore error:', err);
-      setConnected(false);
     });
-    
-    return () => unsub();
+    return () => off(roomRef);
   }, [roomCode, isHost]);
 
-  // Timer sync
   useEffect(() => {
-    if (!roomData?.game?.timerEnd) return;
+    if (!gameState?.timerEnd) return;
+    timerExpiredRef.current = false;
     
     const updateTimer = () => {
-      const remaining = Math.max(0, Math.ceil((roomData.game.timerEnd - Date.now()) / 1000));
+      const remaining = Math.max(0, Math.ceil((gameState.timerEnd - Date.now()) / 1000));
       setLocalTimer(remaining);
+      
+      if (remaining <= 5 && remaining > 0 && remaining !== lastTickRef.current) {
+        soundManager.playTick();
+        lastTickRef.current = remaining;
+      }
+      
+      if (remaining === 0 && !timerExpiredRef.current) {
+        timerExpiredRef.current = true;
+        soundManager.playTimeUp();
+        if (isHost && gameState.phase !== 'reveal') handleTimeUp();
+      }
     };
     
     updateTimer();
     const interval = setInterval(updateTimer, 100);
     return () => clearInterval(interval);
-  }, [roomData?.game?.timerEnd]);
+  }, [gameState?.timerEnd, gameState?.phase, isHost]);
 
-  // Reset answer state on new question
   useEffect(() => {
-    if (roomData?.game?.questionIndex !== undefined) {
+    if (gameState?.questionIndex !== undefined) {
       setSelectedAnswer(null);
       setHasAnswered(false);
+      lastTickRef.current = null;
+      timerExpiredRef.current = false;
     }
-  }, [roomData?.game?.questionIndex]);
+  }, [gameState?.questionIndex]);
 
-  // Create game (Host)
+  useEffect(() => {
+    if (gameState?.buzzedPlayer && gameState?.phase === 'answering') {
+      soundManager.playBuzzer();
+    }
+  }, [gameState?.buzzedPlayer, gameState?.phase]);
+
+  const handleTimeUp = async () => {
+    if (!isHost) return;
+    await update(ref(db, `rooms/${roomCode}/game`), { phase: 'reveal' });
+  };
+
   const createGame = async () => {
-    if (!playerName.trim()) { setError('Enter your name'); return; }
-    setError('');
-    
-    try {
-      const code = generateRoomCode();
-      const roomRef = doc(db, 'rooms', code);
-      
-      await setDoc(roomRef, {
-        host: playerId,
-        hostName: playerName.trim(),
-        createdAt: Date.now(),
-        game: { status: 'lobby' },
-        players: {
-          [playerId]: { name: playerName.trim(), score: 0, isHost: true }
-        }
-      });
-      
-      localStorage.setItem('xmas-playerName', playerName.trim());
-      setRoomCode(code);
-      setIsHost(true);
-      setScreen('lobby');
-    } catch (err) {
-      console.error(err);
-      setError('Failed to create game. Check Firebase rules.');
-    }
+    if (!playerName.trim()) return alert('Enter your name');
+    soundManager.init();
+    soundManager.playClick();
+    const code = generateRoomCode();
+    await set(ref(db, `rooms/${code}`), {
+      host: playerId,
+      hostName: playerName.trim(),
+      createdAt: Date.now(),
+      game: { status: 'lobby' },
+      players: { [playerId]: { name: playerName.trim(), score: 0, isHost: true, joinedAt: Date.now() } }
+    });
+    localStorage.setItem('playerName', playerName.trim());
+    setRoomCode(code);
+    setIsHost(true);
+    setScreen('lobby');
   };
 
-  // Join game (Player)
   const joinGame = async () => {
-    if (!playerName.trim()) { setError('Enter your name'); return; }
-    if (!joinCode.trim() || joinCode.length !== 4) { setError('Enter 4-letter room code'); return; }
-    setError('');
-    
+    if (!playerName.trim()) return alert('Enter your name');
+    if (!joinCode.trim() || joinCode.length !== 4) return alert('Enter 4-letter room code');
+    soundManager.init();
+    soundManager.playClick();
     const code = joinCode.toUpperCase();
-    
-    try {
-      const roomRef = doc(db, 'rooms', code);
-      const snap = await getDoc(roomRef);
-      
-      if (!snap.exists()) { setError('Room not found'); return; }
-      
-      const data = snap.data();
-      const updatedPlayers = {
-        ...data.players,
-        [playerId]: { name: playerName.trim(), score: 0, isHost: false }
-      };
-      
-      await updateDoc(roomRef, { players: updatedPlayers });
-      
-      localStorage.setItem('xmas-playerName', playerName.trim());
-      setRoomCode(code);
-      setIsHost(false);
-      setScreen('lobby');
-    } catch (err) {
-      console.error(err);
-      setError('Failed to join. Try again.');
-    }
+    const checkRoom = await new Promise(resolve => {
+      onValue(ref(db, `rooms/${code}`), (snap) => resolve(snap.val()), { onlyOnce: true });
+    });
+    if (!checkRoom) return alert('Room not found');
+    await set(ref(db, `rooms/${code}/players/${playerId}`), {
+      name: playerName.trim(), score: 0, isHost: false, joinedAt: Date.now()
+    });
+    localStorage.setItem('playerName', playerName.trim());
+    setRoomCode(code);
+    setIsHost(false);
+    setScreen('lobby');
   };
 
-  // Leave game
   const leaveGame = async () => {
-    if (roomCode) {
-      try {
-        if (isHost) {
-          await deleteDoc(doc(db, 'rooms', roomCode));
-        } else {
-          const roomRef = doc(db, 'rooms', roomCode);
-          const snap = await getDoc(roomRef);
-          if (snap.exists()) {
-            const data = snap.data();
-            const { [playerId]: removed, ...rest } = data.players;
-            await updateDoc(roomRef, { players: rest });
-          }
-        }
-      } catch (err) { console.error(err); }
+    if (roomCode && playerId) {
+      if (isHost) await remove(ref(db, `rooms/${roomCode}`));
+      else await remove(ref(db, `rooms/${roomCode}/players/${playerId}`));
     }
     setRoomCode('');
-    setRoomData(null);
+    setGameState(null);
+    setPlayers({});
     setIsHost(false);
     setScreen('home');
   };
 
-  // Start round (Host only)
   const startRound = async (category) => {
+    soundManager.playClick();
     const qs = [...allQuestions[category]].sort(() => Math.random() - 0.5).slice(0, 5);
-    
-    try {
-      await updateDoc(doc(db, 'rooms', roomCode), {
-        game: {
-          status: 'playing',
-          category,
-          questions: qs,
-          questionIndex: 0,
-          currentQuestion: qs[0],
-          phase: 'buzzer',
-          buzzedPlayer: null,
-          timerEnd: Date.now() + 30000,
-          answers: {}
-        }
-      });
-    } catch (err) { console.error(err); }
+    await update(ref(db, `rooms/${roomCode}/game`), {
+      status: 'playing', category, questions: qs, questionIndex: 0,
+      currentQuestion: qs[0], phase: 'buzzer', buzzedPlayer: null,
+      timerEnd: Date.now() + 30000, answers: {}
+    });
   };
 
-  // Buzz in
   const buzzIn = async () => {
-    if (roomData?.game?.phase !== 'buzzer' || roomData?.game?.buzzedPlayer) return;
-    
-    try {
-      await updateDoc(doc(db, 'rooms', roomCode), {
-        'game.buzzedPlayer': playerId,
-        'game.phase': 'answering',
-        'game.timerEnd': Date.now() + 15000
-      });
-    } catch (err) { console.error(err); }
+    if (gameState?.phase !== 'buzzer' || gameState?.buzzedPlayer || localTimer === 0) return;
+    await update(ref(db, `rooms/${roomCode}/game`), {
+      buzzedPlayer: playerId, phase: 'answering', timerEnd: Date.now() + 15000
+    });
   };
 
-  // Submit answer
   const submitAnswer = async (answer) => {
-    if (hasAnswered) return;
-    
+    if (hasAnswered || localTimer === 0) return;
+    soundManager.playClick();
     setSelectedAnswer(answer);
     setHasAnswered(true);
     
-    const correct = answer === roomData.game.currentQuestion.answer;
-    const timeBonus = Math.max(0, localTimer * 3);
-    const points = correct ? 100 + timeBonus : 0;
+    const correct = answer === gameState.currentQuestion.answer;
+    const points = correct ? 100 + Math.max(0, localTimer * 3) : 0;
     
-    try {
-      const updates = {
-        [`game.answers.${playerId}`]: { answer, correct, points }
-      };
-      
-      if (correct) {
-        const currentScore = roomData.players[playerId]?.score || 0;
-        updates[`players.${playerId}.score`] = currentScore + points;
-      }
-      
-      await updateDoc(doc(db, 'rooms', roomCode), updates);
-      
-      // Reveal after short delay
-      setTimeout(async () => {
-        try {
-          await updateDoc(doc(db, 'rooms', roomCode), { 'game.phase': 'reveal' });
-        } catch (err) {}
-      }, 500);
-    } catch (err) { console.error(err); }
+    if (correct) soundManager.playCorrect();
+    else soundManager.playWrong();
+    
+    await update(ref(db, `rooms/${roomCode}/game/answers/${playerId}`), { answer, correct, points, time: Date.now() });
+    
+    if (correct) {
+      const currentScore = players[playerId]?.score || 0;
+      await update(ref(db, `rooms/${roomCode}/players/${playerId}`), { score: currentScore + points });
+    }
+    
+    setTimeout(() => update(ref(db, `rooms/${roomCode}/game`), { phase: 'reveal' }), 500);
   };
 
-  // Next question (Host only)
   const nextQuestion = async () => {
-    const nextIdx = roomData.game.questionIndex + 1;
-    
-    try {
-      if (nextIdx >= roomData.game.questions.length) {
-        await updateDoc(doc(db, 'rooms', roomCode), {
-          'game.status': 'roundEnd',
-          'game.phase': null
-        });
-      } else {
-        await updateDoc(doc(db, 'rooms', roomCode), {
-          'game.questionIndex': nextIdx,
-          'game.currentQuestion': roomData.game.questions[nextIdx],
-          'game.phase': 'buzzer',
-          'game.buzzedPlayer': null,
-          'game.timerEnd': Date.now() + 30000,
-          'game.answers': {}
-        });
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  // Back to lobby
-  const backToLobby = async () => {
-    try {
-      await updateDoc(doc(db, 'rooms', roomCode), {
-        game: { status: 'lobby' }
+    soundManager.playClick();
+    const nextIdx = gameState.questionIndex + 1;
+    if (nextIdx >= gameState.questions.length) {
+      soundManager.playVictory();
+      await update(ref(db, `rooms/${roomCode}/game`), { status: 'roundEnd', phase: null });
+    } else {
+      await update(ref(db, `rooms/${roomCode}/game`), {
+        questionIndex: nextIdx, currentQuestion: gameState.questions[nextIdx],
+        phase: 'buzzer', buzzedPlayer: null, timerEnd: Date.now() + 30000, answers: {}
       });
-    } catch (err) { console.error(err); }
+    }
   };
 
-  // Copy room code
+  const backToLobby = async () => {
+    soundManager.playClick();
+    await update(ref(db, `rooms/${roomCode}/game`), { status: 'lobby', category: null, questions: null, currentQuestion: null, phase: null });
+  };
+
   const copyCode = () => {
     navigator.clipboard.writeText(roomCode);
     setCopied(true);
+    soundManager.playClick();
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Get sorted players
-  const players = roomData?.players || {};
-  const sortedPlayers = Object.entries(players)
-    .map(([id, p]) => ({ id, ...p }))
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
+  const toggleSound = () => setSoundEnabled(soundManager.toggle());
 
-  const gameState = roomData?.game;
+  const sortedPlayers = Object.entries(players).map(([id, p]) => ({ id, ...p })).sort((a, b) => (b.score || 0) - (a.score || 0));
 
-  // RENDER: Home
+  // HOME SCREEN
   const renderHome = () => (
     <div className="min-h-screen bg-gradient-to-b from-red-900 via-red-800 to-green-900 p-4 relative">
       <Snowflakes />
       <div className="max-w-md mx-auto relative z-10 pt-8">
+        <button onClick={toggleSound} className="absolute top-2 right-2 text-white/60 hover:text-white p-2">
+          {soundEnabled ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+        </button>
         <div className="text-center mb-8">
           <div className="text-6xl mb-3">🎄</div>
           <h1 className="text-4xl font-bold text-white mb-1">Christmas Quiz</h1>
           <p className="text-green-200">Multi-Device Edition</p>
+          <div className={`flex items-center justify-center gap-2 mt-2 ${connected ? 'text-green-400' : 'text-red-400'}`}>
+            {connected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+            <span className="text-sm">{connected ? 'Connected' : 'Connecting...'}</span>
+          </div>
         </div>
-
         <div className="bg-white/10 backdrop-blur rounded-xl p-4 mb-6">
-          <input
-            type="text"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Your name"
-            className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/50 text-lg text-center font-medium"
-            maxLength={15}
-          />
+          <input type="text" value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Your name" className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/50 text-lg text-center font-medium" maxLength={15} />
         </div>
-
-        {error && <p className="text-red-300 text-center mb-4">{error}</p>}
-
         <div className="space-y-3">
-          <button onClick={createGame} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-between shadow-lg">
-            <span className="flex items-center gap-3"><Crown className="w-6 h-6" />Host New Game</span>
-            <ChevronRight />
+          <button onClick={createGame} disabled={!connected} className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-between shadow-lg active:scale-95 transition-transform">
+            <span className="flex items-center gap-3"><Crown className="w-6 h-6" />Host New Game</span><ChevronRight />
           </button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/20"></div></div>
-            <div className="relative flex justify-center"><span className="bg-transparent px-4 text-white/60 text-sm">or join</span></div>
-          </div>
-
+          <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/20"></div></div><div className="relative flex justify-center"><span className="px-4 text-white/60 text-sm">or</span></div></div>
           <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-            <input
-              type="text"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
-              placeholder="ROOM CODE"
-              className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/50 text-2xl text-center font-mono tracking-widest uppercase"
-              maxLength={4}
-            />
-            <button onClick={joinGame} disabled={joinCode.length !== 4} className="w-full mt-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white font-bold py-3 rounded-lg">
-              Join Game
-            </button>
+            <input type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))} placeholder="ROOM CODE" className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/50 text-2xl text-center font-mono tracking-widest uppercase" maxLength={4} />
+            <button onClick={joinGame} disabled={!connected || joinCode.length !== 4} className="w-full mt-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white font-bold py-3 rounded-lg active:scale-95 transition-transform">Join Game</button>
           </div>
         </div>
-
-        <p className="text-center text-white/40 text-sm mt-8">
-          {Object.values(allQuestions).reduce((s, c) => s + c.length, 0)} questions • {Object.keys(allQuestions).length} categories
-        </p>
+        <p className="text-center text-white/40 text-sm mt-8">{Object.values(allQuestions).reduce((s, c) => s + c.length, 0)} questions • {Object.keys(allQuestions).length} categories</p>
       </div>
     </div>
   );
 
-  // RENDER: Lobby
+  // LOBBY
   const renderLobby = () => (
     <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-800 p-4">
       <Snowflakes />
       <div className="max-w-md mx-auto relative z-10">
         <div className="flex justify-between items-center mb-6">
           <button onClick={leaveGame} className="text-white/70 flex items-center gap-1"><LogOut className="w-4 h-4" />Leave</button>
-          <div className={`flex items-center gap-1 ${connected ? 'text-green-400' : 'text-red-400'}`}>
-            {connected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+          <div className="flex items-center gap-3">
+            <button onClick={toggleSound} className="text-white/60 hover:text-white">{soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}</button>
+            <div className={`flex items-center gap-1 ${connected ? 'text-green-400' : 'text-red-400'}`}>{connected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}</div>
           </div>
         </div>
-
         <div className="text-center mb-6">
           <p className="text-green-200 mb-1">Room Code</p>
           <div className="flex items-center justify-center gap-2">
@@ -514,50 +499,38 @@ export default function App() {
             <button onClick={copyCode} className="text-white/70 hover:text-white"><Copy className="w-6 h-6" /></button>
           </div>
           {copied && <p className="text-green-400 text-sm mt-1">Copied!</p>}
-          <p className="text-white/60 text-sm mt-2">Share this code with players</p>
+          <p className="text-white/60 text-sm mt-2">Share this code with other players</p>
         </div>
-
         <div className="bg-white/10 rounded-xl p-4 mb-6">
-          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
-            <Users className="w-5 h-5" /> Players ({sortedPlayers.length})
-          </h3>
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2"><Users className="w-5 h-5" /> Players ({Object.keys(players).length})</h3>
           <div className="space-y-2">
             {sortedPlayers.map((p) => (
               <div key={p.id} className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
-                <span className="text-white flex items-center gap-2">
-                  {p.isHost && <Crown className="w-4 h-4 text-yellow-400" />}
-                  {p.name}
-                  {p.id === playerId && <span className="text-white/40 text-xs">(you)</span>}
-                </span>
+                <span className="text-white flex items-center gap-2">{p.isHost && <Crown className="w-4 h-4 text-yellow-400" />}{p.name}{p.id === playerId && <span className="text-white/40 text-xs">(you)</span>}</span>
                 <span className="text-green-300 font-bold">{p.score || 0}</span>
               </div>
             ))}
           </div>
         </div>
-
         {isHost ? (
           <div>
             <p className="text-white text-center mb-4 font-medium">Choose a category:</p>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(categoryMeta).map(([key, meta]) => (
-                <button key={key} onClick={() => startRound(key)} className={`bg-gradient-to-r ${meta.color} text-white font-bold py-3 px-3 rounded-xl flex items-center gap-2`}>
-                  <span className="text-xl">{meta.icon}</span>
-                  <span className="text-sm">{meta.name}</span>
+                <button key={key} onClick={() => startRound(key)} className={`bg-gradient-to-r ${meta.color} text-white font-bold py-3 px-3 rounded-xl flex items-center gap-2 active:scale-95 transition-transform`}>
+                  <span className="text-xl">{meta.icon}</span><span className="text-sm">{meta.name}</span>
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <div className="text-center">
-            <div className="text-6xl mb-3">⏳</div>
-            <p className="text-white text-lg">Waiting for host to start...</p>
-          </div>
+          <div className="text-center"><div className="text-6xl mb-3">⏳</div><p className="text-white text-lg">Waiting for host...</p></div>
         )}
       </div>
     </div>
   );
 
-  // RENDER: Playing
+  // PLAYING
   const renderPlaying = () => {
     const meta = categoryMeta[gameState?.category] || {};
     const q = gameState?.currentQuestion;
@@ -565,21 +538,17 @@ export default function App() {
     const buzzedPlayer = gameState?.buzzedPlayer;
     const isBuzzedPlayer = buzzedPlayer === playerId;
     const answers = gameState?.answers || {};
-    const myAnswer = answers[playerId];
+    const timeUp = localTimer === 0;
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 p-4">
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{meta.icon}</span>
-              <span className="text-white">{meta.name}</span>
-            </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2"><span className="text-2xl">{meta.icon}</span><span className="text-white">{meta.name}</span></div>
+            <div className="flex items-center gap-3">
+              <button onClick={toggleSound} className="text-white/60 hover:text-white">{soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}</button>
               <span className="text-white/60">Q{(gameState?.questionIndex || 0) + 1}/5</span>
-              <div className={`px-3 py-1 rounded-full text-white flex items-center gap-1 ${localTimer <= 5 ? 'bg-red-500 animate-pulse' : 'bg-white/20'}`}>
-                <Clock className="w-4 h-4" />{localTimer}s
-              </div>
+              <div className={`px-3 py-1 rounded-full text-white flex items-center gap-1 ${localTimer <= 5 ? 'bg-red-500 animate-pulse' : 'bg-white/20'}`}><Clock className="w-4 h-4" />{localTimer}s</div>
             </div>
           </div>
 
@@ -590,31 +559,28 @@ export default function App() {
 
           {phase === 'buzzer' && !buzzedPlayer && (
             <div className="mb-4">
-              <button onClick={buzzIn} className="w-full bg-red-500 hover:bg-red-400 active:scale-95 text-white font-bold py-8 rounded-2xl text-2xl shadow-lg transition-transform animate-pulse">
-                🔔 BUZZ!
+              <button onClick={buzzIn} disabled={timeUp} className={`w-full text-white font-bold py-8 rounded-2xl text-2xl shadow-lg transition-all ${timeUp ? 'bg-gray-500 cursor-not-allowed' : 'bg-red-500 hover:bg-red-400 active:scale-95 animate-pulse'}`}>
+                {timeUp ? "⏱️ TIME'S UP!" : "🔔 BUZZ!"}
               </button>
-              <p className="text-center text-white/60 mt-2">First to buzz answers!</p>
+              {!timeUp && <p className="text-center text-white/60 mt-2">First to buzz answers!</p>}
             </div>
           )}
 
           {phase === 'answering' && buzzedPlayer && (
             <div className="mb-4">
               <p className="text-center text-yellow-400 mb-3 font-bold text-xl">🔔 {players[buzzedPlayer]?.name} buzzed!</p>
-              
               {isBuzzedPlayer ? (
                 <div className="space-y-2">
                   {q?.options.map((opt, i) => (
-                    <button key={i} onClick={() => submitAnswer(opt)} disabled={hasAnswered}
-                      className={`w-full py-3 px-4 rounded-xl font-medium text-left transition-all ${selectedAnswer === opt ? 'bg-blue-500 text-white' : 'bg-white/90 text-gray-800 hover:bg-white'}`}>
+                    <button key={i} onClick={() => submitAnswer(opt)} disabled={hasAnswered || timeUp}
+                      className={`w-full py-3 px-4 rounded-xl font-medium text-left transition-all ${hasAnswered || timeUp ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white active:scale-98'} ${selectedAnswer === opt ? 'bg-blue-500 text-white' : 'bg-white/90 text-gray-800'}`}>
                       {opt}
                     </button>
                   ))}
+                  {timeUp && !hasAnswered && <p className="text-center text-red-400 font-bold mt-2">⏱️ Too slow!</p>}
                 </div>
               ) : (
-                <div className="text-center text-white">
-                  <div className="text-4xl mb-2">👀</div>
-                  <p>Waiting for their answer...</p>
-                </div>
+                <div className="text-center text-white"><div className="text-4xl mb-2">👀</div><p>{timeUp ? "Time ran out!" : "Waiting for answer..."}</p></div>
               )}
             </div>
           )}
@@ -623,28 +589,26 @@ export default function App() {
             <div className="mb-4">
               <div className="space-y-2 mb-4">
                 {q?.options.map((opt, i) => (
-                  <div key={i} className={`w-full py-3 px-4 rounded-xl font-medium flex items-center gap-2 ${
-                    opt === q.answer ? 'bg-green-500 text-white' :
-                    myAnswer?.answer === opt && !myAnswer?.correct ? 'bg-red-500 text-white' :
-                    'bg-white/20 text-white/60'
-                  }`}>
+                  <div key={i} className={`w-full py-3 px-4 rounded-xl font-medium flex items-center gap-2 ${opt === q.answer ? 'bg-green-500 text-white' : answers[playerId]?.answer === opt && !answers[playerId]?.correct ? 'bg-red-500 text-white' : 'bg-white/20 text-white/60'}`}>
                     {opt === q.answer && <Check className="w-5 h-5" />}
-                    {myAnswer?.answer === opt && !myAnswer?.correct && <X className="w-5 h-5" />}
+                    {answers[playerId]?.answer === opt && !answers[playerId]?.correct && <X className="w-5 h-5" />}
                     {opt}
                   </div>
                 ))}
               </div>
-
-              {buzzedPlayer && answers[buzzedPlayer] && (
+              {buzzedPlayer ? (
                 <p className={`text-center font-bold mb-4 ${answers[buzzedPlayer]?.correct ? 'text-green-400' : 'text-red-400'}`}>
                   {players[buzzedPlayer]?.name}: {answers[buzzedPlayer]?.correct ? `✓ +${answers[buzzedPlayer]?.points}` : '✗ Wrong!'}
                 </p>
+              ) : (
+                <p className="text-center text-yellow-400 font-bold mb-4">⏱️ No one buzzed!</p>
               )}
-
-              {isHost && (
-                <button onClick={nextQuestion} className="w-full bg-green-500 hover:bg-green-400 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">
+              {isHost ? (
+                <button onClick={nextQuestion} className="w-full bg-green-500 hover:bg-green-400 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
                   {(gameState?.questionIndex || 0) < 4 ? 'Next Question' : 'See Results'} <ChevronRight />
                 </button>
+              ) : (
+                <p className="text-center text-white/60">Waiting for host...</p>
               )}
             </div>
           )}
@@ -664,10 +628,9 @@ export default function App() {
     );
   };
 
-  // RENDER: Round End
+  // ROUND END
   const renderRoundEnd = () => {
     const meta = categoryMeta[gameState?.category] || { icon: '🎯', name: 'Round' };
-    
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-700 to-green-900 p-4">
         <Snowflakes />
@@ -677,44 +640,37 @@ export default function App() {
             <h2 className="text-3xl font-bold text-white">Round Complete!</h2>
             <p className="text-green-200">{meta.icon} {meta.name}</p>
           </div>
-
           <div className="space-y-2 mb-6">
             {sortedPlayers.map((p, i) => (
-              <div key={p.id} className={`rounded-xl p-4 flex items-center gap-4 ${
-                i === 0 ? 'bg-yellow-300 text-yellow-900' :
-                i === 1 ? 'bg-gray-200 text-gray-800' :
-                i === 2 ? 'bg-orange-300 text-orange-900' :
-                'bg-white/80 text-gray-800'
-              }`}>
+              <div key={p.id} className={`rounded-xl p-4 flex items-center gap-4 ${i === 0 ? 'bg-yellow-300 text-yellow-900' : i === 1 ? 'bg-gray-200 text-gray-800' : i === 2 ? 'bg-orange-300 text-orange-900' : 'bg-white/80 text-gray-800'}`}>
                 <div className="text-2xl font-bold w-10">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</div>
-                <div className="flex-1 font-bold flex items-center gap-2">
-                  {p.name}
-                  {p.id === playerId && <span className="text-xs opacity-60">(you)</span>}
-                </div>
+                <div className="flex-1 font-bold flex items-center gap-2">{p.name}{p.id === playerId && <span className="text-xs opacity-60">(you)</span>}</div>
                 <div className="text-2xl font-bold">{p.score}</div>
               </div>
             ))}
           </div>
-
           {isHost ? (
             <div className="space-y-2">
-              <button onClick={backToLobby} className="w-full bg-white text-green-800 font-bold py-3 rounded-xl">Play Another Round</button>
-              <button onClick={leaveGame} className="w-full bg-white/20 text-white font-bold py-3 rounded-xl">End Game</button>
+              <button onClick={backToLobby} className="w-full bg-white text-green-800 font-bold py-3 rounded-xl active:scale-95 transition-transform">Play Another Round</button>
+              <button onClick={leaveGame} className="w-full bg-white/20 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">End Game</button>
             </div>
           ) : (
-            <div className="text-center text-white"><p>Waiting for host...</p></div>
+            <p className="text-center text-white">Waiting for host...</p>
           )}
         </div>
       </div>
     );
   };
 
-  // Main render
-  if (screen === 'home') return renderHome();
-  if (screen === 'lobby') {
-    if (gameState?.status === 'playing') return renderPlaying();
-    if (gameState?.status === 'roundEnd') return renderRoundEnd();
-    return renderLobby();
-  }
-  return renderHome();
+  const getScreen = () => {
+    if (screen === 'home') return renderHome();
+    if (screen === 'lobby') {
+      if (gameState?.status === 'playing') return renderPlaying();
+      if (gameState?.status === 'roundEnd') return renderRoundEnd();
+      return renderLobby();
+    }
+    return renderHome();
+  };
+
+  return <div className="font-sans">{getScreen()}</div>;
 }
