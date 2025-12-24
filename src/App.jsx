@@ -265,7 +265,7 @@ const Snowflakes = () => (
 );
 
 // Family access code - change this to your own secret code!
-const FAMILY_ACCESS_CODE = "JACKSON2024";
+const FAMILY_ACCESS_CODE = "JACK2025";
 
 export default function App() {
   const [connected, setConnected] = useState(false);
