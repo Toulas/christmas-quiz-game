@@ -50,6 +50,8 @@ const soundManager = new SoundManager();
 
 // Categories with metadata
 const categoryMeta = {
+  currentaffairs: { name: "Current Affairs 2025", icon: "📰", color: "from-slate-500 to-zinc-600" },
+  twenty25: { name: "2025 Pop Culture", icon: "🔥", color: "from-rose-500 to-orange-500" },
   caribbean: { name: "Caribbean Christmas", icon: "🌴", color: "from-yellow-500 to-orange-500" },
   trivia: { name: "Christmas Trivia", icon: "🎄", color: "from-red-500 to-red-600" },
   movies: { name: "Christmas Movies", icon: "🎬", color: "from-purple-500 to-pink-500" },
@@ -68,6 +70,46 @@ const categoryMeta = {
 
 // Questions Database
 const allQuestions = {
+  currentaffairs: [
+    // World Leaders & Politics
+    { id: 'ca1', question: "Who became the first American Pope in 2025, taking the name Leo XIV?", options: ["Cardinal Dolan", "Robert Prevost", "Sean O'Malley", "Blase Cupich"], answer: "Robert Prevost" },
+    { id: 'ca2', question: "Which country elected its first female Prime Minister, Sanae Takaichi, in 2025?", options: ["South Korea", "Japan", "Taiwan", "Singapore"], answer: "Japan" },
+    { id: 'ca3', question: "Who became Chancellor of Germany in 2025?", options: ["Olaf Scholz", "Friedrich Merz", "Annalena Baerbock", "Markus Söder"], answer: "Friedrich Merz" },
+    { id: 'ca4', question: "Which South Korean president was arrested and removed from office in 2025?", options: ["Moon Jae-in", "Yoon Suk Yeol", "Park Geun-hye", "Lee Jae-myung"], answer: "Yoon Suk Yeol" },
+    { id: 'ca5', question: "Who became the first female Archbishop of Canterbury in 2025?", options: ["Sarah Mullally", "Rose Hudson-Wilkin", "Rachel Treweek", "Libby Lane"], answer: "Sarah Mullally" },
+    // Major Events
+    { id: 'ca6', question: "In January 2025, devastating wildfires hit which major US city?", options: ["San Francisco", "Los Angeles", "San Diego", "Phoenix"], answer: "Los Angeles" },
+    { id: 'ca7', question: "What was stolen from the Louvre Museum in Paris in October 2025?", options: ["Mona Lisa", "Crown Jewels", "Venus de Milo", "Egyptian artifacts"], answer: "Crown Jewels" },
+    { id: 'ca8', question: "Which social media company removed third-party fact-checking from its platforms in 2025?", options: ["Twitter/X", "TikTok", "Meta", "Google"], answer: "Meta" },
+    { id: 'ca9', question: "Carlo Acutis, canonized in 2025, is known as the patron saint of what?", options: ["Youth", "The Internet", "Gamers", "Students"], answer: "The Internet" },
+    { id: 'ca10', question: "Which species was removed from the endangered list in 2025 after decades of conservation?", options: ["Giant Panda", "Green Turtle", "Blue Whale", "Snow Leopard"], answer: "Green Turtle" },
+    // Sports
+    { id: 'ca11', question: "Which MLS team, led by Lionel Messi, won the 2025 MLS Cup?", options: ["LA Galaxy", "Inter Miami", "LAFC", "Atlanta United"], answer: "Inter Miami" },
+    { id: 'ca12', question: "Who performed at the Super Bowl LIX halftime show in February 2025?", options: ["Beyoncé", "Kendrick Lamar", "Taylor Swift", "Drake"], answer: "Kendrick Lamar" },
+    // Entertainment & Culture
+    { id: 'ca13', question: "Which film won Best Picture at the 2025 Academy Awards?", options: ["Wicked", "Anora", "The Brutalist", "Emilia Pérez"], answer: "Anora" },
+    { id: 'ca14', question: "Beyoncé finally won Grammy Album of the Year in 2025 for which album?", options: ["Renaissance", "Lemonade", "Cowboy Carter", "4"], answer: "Cowboy Carter" },
+    { id: 'ca15', question: "Taylor Swift got engaged to which NFL player in 2025?", options: ["Patrick Mahomes", "Travis Kelce", "Joe Burrow", "Josh Allen"], answer: "Travis Kelce" },
+  ],
+  twenty25: [
+    // Music 2025
+    { id: '25_1', question: "Which TikTok star's song 'Ordinary' broke the US record for most consecutive weeks at #1 in 2025?", options: ["Benson Boone", "Alex Warren", "Tate McRae", "Sombr"], answer: "Alex Warren" },
+    { id: '25_2', question: "Kendrick Lamar and SZA's duet 'Luther' samples which R&B legend?", options: ["Marvin Gaye", "Luther Vandross", "Teddy Pendergrass", "Barry White"], answer: "Luther Vandross" },
+    { id: '25_3', question: "Lady Gaga's 2025 album is called what?", options: ["Chromatica II", "MAYHEM", "Monster Ball", "ARTPOP 2"], answer: "MAYHEM" },
+    { id: '25_4', question: "Which girl group's song 'Golden' became the first K-pop girl group #1 since Destiny's Child?", options: ["BLACKPINK", "NewJeans", "Huntrix", "KATSEYE"], answer: "Huntrix" },
+    { id: '25_5', question: "Tate McRae's 2025 hit '2 Hands' is from which album?", options: ["Think Later", "So Close To What", "Greedy", "Exes"], answer: "So Close To What" },
+    { id: '25_6', question: "Which R&B artist had their first Top 10 hit with 'Folded' in 2025?", options: ["Summer Walker", "Kehlani", "SZA", "Ravyn Lenae"], answer: "Kehlani" },
+    { id: '25_7', question: "Sabrina Carpenter's 2025 single 'Manchild' is from which album?", options: ["emails i can't send", "Short n' Sweet", "Man's Best Friend", "Singular"], answer: "Man's Best Friend" },
+    { id: '25_8', question: "Which Bruno Mars & Lady Gaga collaboration topped charts in 2025?", options: ["Shallow", "Die With A Smile", "Just Dance", "Uptown Funk"], answer: "Die With A Smile" },
+    // Movies 2025
+    { id: '25_9', question: "Which animated film became the highest-grossing animated movie ever in 2025, earning over $2 billion?", options: ["Frozen 3", "Zootopia 2", "Ne Zha 2", "Inside Out 3"], answer: "Ne Zha 2" },
+    { id: '25_10', question: "Which Disney live-action remake was the first live-action/animated film to gross $1 billion?", options: ["The Little Mermaid", "Moana", "Lilo & Stitch", "Snow White"], answer: "Lilo & Stitch" },
+    { id: '25_11', question: "What is the 2025 sequel to the Broadway musical adaptation starring Cynthia Erivo?", options: ["Wicked: Part Two", "Wicked: For Good", "Wicked: Elphaba Rising", "Wicked Forever"], answer: "Wicked: For Good" },
+    { id: '25_12', question: "Which anime film broke records as the highest-grossing Japanese film of all time in 2025?", options: ["One Piece: Final Chapter", "Demon Slayer: Infinity Castle", "My Hero Academia: Final", "Jujutsu Kaisen Zero 2"], answer: "Demon Slayer: Infinity Castle" },
+    { id: '25_13', question: "The 2025 horror film 'The Conjuring: Last Rites' broke what record?", options: ["Longest runtime", "Biggest horror opening ever", "Most sequels", "Best reviews"], answer: "Biggest horror opening ever" },
+    { id: '25_14', question: "What is the title of the third Avatar movie released in December 2025?", options: ["Avatar: The Seed Bearer", "Avatar: Fire and Ash", "Avatar: Pandora Rising", "Avatar: The Way of Fire"], answer: "Avatar: Fire and Ash" },
+    { id: '25_15', question: "Which superhero reboot launched the new DCU in 2025?", options: ["Batman", "Superman", "Wonder Woman", "The Flash"], answer: "Superman" },
+  ],
   caribbean: [
     // Trinidad & Tobago
     { id: 'car1', question: "What is the traditional Christmas music of Trinidad & Tobago, with Spanish-influenced folk songs?", options: ["Calypso", "Parang", "Soca", "Reggae"], answer: "Parang" },
@@ -209,6 +251,25 @@ const allQuestions = {
     { id: 'bib10', question: "What does 'Emmanuel' mean?", options: ["Son of David", "Prince of Peace", "God with us", "Mighty King"], answer: "God with us" },
     { id: 'bib11', question: "Which Gospel has the most detailed birth narrative?", options: ["Matthew", "Mark", "Luke", "John"], answer: "Luke" },
     { id: 'bib12', question: "What was Joseph's occupation?", options: ["Fisherman", "Carpenter", "Tax collector", "Shepherd"], answer: "Carpenter" },
+    // Medium to Difficult
+    { id: 'bib13', question: "Why did Mary and Joseph travel to Bethlehem?", options: ["To visit family", "For a census", "To escape Herod", "For Passover"], answer: "For a census" },
+    { id: 'bib14', question: "Which Roman Emperor ordered the census?", options: ["Nero", "Augustus", "Tiberius", "Claudius"], answer: "Augustus" },
+    { id: 'bib15', question: "What prophet foretold the Messiah would be born in Bethlehem?", options: ["Isaiah", "Micah", "Jeremiah", "Daniel"], answer: "Micah" },
+    { id: 'bib16', question: "How many Wise Men does the Bible actually say visited Jesus?", options: ["Three", "Two", "Twelve", "It doesn't say"], answer: "It doesn't say" },
+    { id: 'bib17', question: "Where did the Wise Men come from?", options: ["Egypt", "The East", "Rome", "Greece"], answer: "The East" },
+    { id: 'bib18', question: "What warning did the Wise Men receive in a dream?", options: ["Leave immediately", "Don't return to Herod", "Go to Egypt", "Tell no one"], answer: "Don't return to Herod" },
+    { id: 'bib19', question: "Where did Mary, Joseph and Jesus flee to escape Herod?", options: ["Nazareth", "Jerusalem", "Egypt", "Jordan"], answer: "Egypt" },
+    { id: 'bib20', question: "What was the name of the prophetess who recognized Jesus at the temple?", options: ["Anna", "Elizabeth", "Mary", "Martha"], answer: "Anna" },
+    { id: 'bib21', question: "Who was the elderly man at the temple who blessed baby Jesus?", options: ["Zacharias", "Simeon", "Joseph", "Nicodemus"], answer: "Simeon" },
+    { id: 'bib22', question: "What did Simeon call Jesus when he saw him?", options: ["King of Kings", "A light for revelation to the Gentiles", "Son of David", "Lamb of God"], answer: "A light for revelation to the Gentiles" },
+    { id: 'bib23', question: "Elizabeth was Mary's relative. Who was Elizabeth's husband?", options: ["Joseph", "Simeon", "Zacharias", "Herod"], answer: "Zacharias" },
+    { id: 'bib24', question: "What happened to Zacharias when he doubted Gabriel?", options: ["He went blind", "He became mute", "He fell ill", "Nothing"], answer: "He became mute" },
+    { id: 'bib25', question: "Who was Elizabeth's son?", options: ["James", "John the Baptist", "Peter", "Andrew"], answer: "John the Baptist" },
+    { id: 'bib26', question: "What does 'Bethlehem' mean in Hebrew?", options: ["City of David", "House of Bread", "Place of Peace", "God's Dwelling"], answer: "House of Bread" },
+    { id: 'bib27', question: "Which Old Testament figure is called a 'type' of Christ and was born in Bethlehem?", options: ["Moses", "David", "Abraham", "Jacob"], answer: "David" },
+    { id: 'bib28', question: "What cruel act did Herod order to try to kill Jesus?", options: ["Burned villages", "Massacre of infant boys", "Poisoned wells", "Tax on families"], answer: "Massacre of infant boys" },
+    { id: 'bib29', question: "Isaiah 7:14 prophesied that a virgin would conceive. What name did it say the child would be called?", options: ["Jesus", "Emmanuel", "Messiah", "Wonderful"], answer: "Emmanuel" },
+    { id: 'bib30', question: "In Luke's Gospel, what song did Mary sing praising God?", options: ["The Benedictus", "The Magnificat", "The Gloria", "The Nunc Dimittis"], answer: "The Magnificat" },
   ],
   food: [
     { id: 'f1', question: "What country does sushi originate from?", options: ["China", "Korea", "Japan", "Thailand"], answer: "Japan" },
@@ -265,7 +326,7 @@ const Snowflakes = () => (
 );
 
 // Family access code - change this to your own secret code!
-const FAMILY_ACCESS_CODE = "JACK2025";
+const FAMILY_ACCESS_CODE = "JACKSON2024";
 
 export default function App() {
   const [connected, setConnected] = useState(false);
